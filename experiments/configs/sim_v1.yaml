@@ -1,0 +1,21 @@
+run_name: sim_v1
+
+sim:
+  num_samples: 200
+  width: 320
+  height: 240
+  line_y_frac: 0.6
+  foot_width: 40
+  foot_height: 20
+  uncertain_margin_px: 5
+  blur_scenarios: true
+
+detector:
+  fault_threshold_px: 2
+  uncertain_margin_px: 8
+  line_detection: hough
+
+output:
+  results_dir: results/
+  save_plots: true
+  save_frames: false

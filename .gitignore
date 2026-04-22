@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+.DS_Store
+results/**/*.png
+results/**/*.mp4
+results/**/*.csv
+data/real/raw/*
+data/real/temp/*
+data/sim/raw/*
