@@ -1,0 +1,5 @@
+experiment_name: exp002_real_controlled_baseline
+output_root: results
+notes:
+  - scaffold_only
+  - no_real_data_processing_yet
