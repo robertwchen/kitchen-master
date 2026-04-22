@@ -1,8 +1,0 @@
-experiment_name: exp001_synthetic_geometry
-notes: "Scaffold only. No synthetic data generation in this version."
-class_labels:
-  - behind_line
-  - on_line
-  - over_line
-  - uncertain
-output_root: results

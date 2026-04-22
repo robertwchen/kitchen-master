@@ -1,5 +1,0 @@
-experiment_name: exp003_uncertainty_gating
-output_root: results
-notes:
-  - scaffold_only
-  - no_threshold_search_yet

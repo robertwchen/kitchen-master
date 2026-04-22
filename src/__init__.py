@@ -1,1 +1,0 @@
-"""KitchenMaster source package."""

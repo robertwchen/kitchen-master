@@ -1,1 +1,0 @@
-"""Geometry utilities and primitives."""
