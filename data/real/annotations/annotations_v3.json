@@ -1,0 +1,23 @@
+{
+  "_notes": "PLACEHOLDER — run scripts/annotate_anchors.py to set precise coordinates. Anchor points are approximate estimates from visual inspection of frame 0. Kitchen-line anchors (kitchen_near_*, kitchen_far_*) override proportional inference and should match the visible blue NVZ lines. Near side = player side closest to camera. Far side = player side behind the net.",
+  "video": "pickle_vid_1.MOV",
+  "reference_frame_index": 0,
+  "annotated_frames": [
+    {
+      "frame_index": 0,
+      "anchors": {
+        "near_left": [20, 960],
+        "near_right": [1900, 960],
+        "net_left": [350, 450],
+        "net_right": [1570, 450],
+        "far_left": [450, 250],
+        "far_right": [1470, 250],
+        "kitchen_near_left": [245, 612],
+        "kitchen_near_right": [1675, 612],
+        "kitchen_far_left": [382, 387],
+        "kitchen_far_right": [1538, 387],
+        "legal_ref_near": [960, 800]
+      }
+    }
+  ]
+}

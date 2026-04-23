@@ -82,6 +82,73 @@ python experiments/run_court_registration.py \
 
 ---
 
+## Phase 1 v3 — Anchor-Point Court Model + ORB Homography (current)
+
+**Root cause of v1/v2 failure:** The Hough-detected horizontal line at y=469 was the
+net top or a tennis court service line, not the pickleball kitchen line. Court geometry
+must be seeded from manually-verified anchor points, not raw line detection.
+
+**Camera geometry:** The camera views from one end of the court. In image coordinates:
+- Near kitchen line (NVZ) = front **horizontal blue line** — between camera and net
+- Far kitchen line (NVZ) = back **horizontal blue line** — behind the net
+- Sidelines = slanted lines connecting the corners
+- Net = vertical structure in the center
+
+### Step 1 — Annotate anchor points
+
+```bash
+python scripts/annotate_anchors.py \
+    --video data/real/videos/pickle_vid_1.MOV \
+    --frame 0 \
+    --out   data/real/annotations/annotations_v3.json
+```
+
+Click 6 required anchors in this order (4 more optional, 1 legal-ref):
+1. `near_left`  — bottom-left corner of pickleball court (near camera)
+2. `near_right` — bottom-right corner (near camera)
+3. `net_left`   — left anchor of net
+4. `net_right`  — right anchor of net
+5. `far_left`   — far-left corner (behind net)
+6. `far_right`  — far-right corner (behind net)
+7–10. Kitchen-line corners (optional — override 7/22 interpolation)
+11. `legal_ref_near` — a point clearly behind the near kitchen line
+
+Keys: `P` preview geometry · `U` undo · `R` reset · `S` save · `Q` quit
+
+### Step 2 — Run v3 registration
+
+```bash
+python experiments/run_court_registration_v3.py \
+    --config experiments/configs/court_reg_v3.yaml
+```
+
+**Outputs** (`results/real_baseline/court_reg_v3/`):
+
+| File | Description |
+|------|-------------|
+| `per_frame_transforms.csv` | Per-frame H matrix + warped anchor positions + kitchen line endpoints |
+| `summary_report.json` | Anchors, registration stats, validation |
+| `debug_frames/frame_NNNNN.png` | Annotated overlays at selected frames |
+| `overlay.mp4` | Annotated overlay video |
+
+### CourtGeometryModel
+
+`src/court_model.py` — derives all court structure from 6 anchor points:
+- `near_kitchen_line`, `far_kitchen_line` — NVZ lines (inferred at 7/22 from net unless explicitly annotated)
+- `outer_polygon`, `net_line`, `left_sideline`, `right_sideline`
+- `near_legal_polygon`, `far_legal_polygon` — legal zone fills
+- `model.warp(H)` — propagates entire model through a homography
+
+### FrameStabilizer
+
+`src/stabilizer.py` — ORB + BFMatcher + RANSAC homography:
+- `set_reference(frame)` — detects ORB features in reference frame
+- `estimate_transform(frame) → (H, info)` — per-frame homography with Lowe ratio test
+- Sanity gate: rejects transforms with >80px translation or det deviation >0.25
+- Falls back to previous valid H if estimation fails
+
+---
+
 ## Phase 2 (planned) — Foot localization + event detection
 
 Placeholders exist in `src/foot_localizer.py` and `src/event_detector.py`.
@@ -143,11 +210,14 @@ Classical CV — no learned model:
 docs/                           problem definition and research plan
 scripts/
   extract_frames.py             extract frames from video with manifest CSV
-  annotate_reference.py         interactive click-to-annotate kitchen line tool
+  annotate_reference.py         interactive click-to-annotate kitchen line tool (v1)
+  annotate_anchors.py           anchor-point annotation tool for court model (v3)
 src/
   config.py                     YAML config loader
-  court_registration.py         Phase 1 — LineModel + CourtRegistration class
-  viz.py                        overlay drawing, legal zone shading, video writer
+  court_registration.py         Phase 1 v1 — LineModel + CourtRegistration class
+  court_model.py                Phase 1 v3 — CourtGeometryModel from anchor points
+  stabilizer.py                 ORB + RANSAC homography frame stabilizer
+  viz.py                        overlay drawing: kitchen lines, court model, video writer
   sim_generator.py              synthetic frame generation with SampleMeta
   baseline_detector.py          Hough + HSV + margin classify
   evaluate.py                   metrics, failure analysis, CSV/PNG output
@@ -164,14 +234,19 @@ data/real/
 experiments/
   configs/
     sim_v1.yaml                 synthetic experiment config
-    court_reg_v1.yaml           court registration config
+    court_reg_v1.yaml           court registration v1 config (static line)
+    court_reg_v2.yaml           court registration v2 config (ORB, no anchor model)
+    court_reg_v3.yaml           court registration v3 config (anchor model + ORB)
   run_sim.py                    Phase 0 synthetic pipeline
   run_eval.py                   re-evaluate from saved predictions
   run_real.py                   Phase 0 real data eval
-  run_court_registration.py     Phase 1 court registration pipeline
+  run_court_registration.py     Phase 1 v1 pipeline (static horizontal line)
+  run_court_registration_v2.py  Phase 1 v2 pipeline (ORB homography, no anchor model)
+  run_court_registration_v3.py  Phase 1 v3 pipeline (anchor model + ORB) ← current
 results/
   sim_v1/                       synthetic pipeline outputs
-  real_baseline/court_reg_v1/   Phase 1 outputs (overlay video, line CSV, report)
+  real_baseline/court_reg_v1/   Phase 1 v1 outputs
+  real_baseline/court_reg_v3/   Phase 1 v3 outputs (after annotation + run)
 tests/                          27 unit tests
 ```
 

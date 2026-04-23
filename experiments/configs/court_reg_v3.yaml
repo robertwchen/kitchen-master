@@ -1,0 +1,32 @@
+run_name: court_reg_v3
+
+video:
+  path: data/real/videos/pickle_vid_1.MOV
+
+annotations:
+  path: data/real/annotations/annotations_v3.json
+
+stabilizer:
+  n_features: 4000
+  ratio_test: 0.75
+  min_matches: 15
+  ransac_threshold_px: 4.0
+  transform_type: homography   # "homography" or "affine"
+  top_mask_frac: 0.20          # mask top 20% of frame (sky/background)
+
+refinement:
+  enabled: true
+  search_px: 15                # ±15px perpendicular search around predicted line
+  n_sample_points: 40          # points sampled along each kitchen line
+
+output:
+  results_dir: results/real_baseline/
+  save_overlay_video: true
+  overlay_video_fps: 10.0
+  overlay_video_scale: 0.5
+  overlay_frame_step: 6
+  debug_frame_indices: [0, 60, 300, 600, 1200, 2400]
+  draw_anchors: true           # show anchor dots in debug frames
+
+validation:
+  n_sample_frames: 60          # frames for edge-strength + anchor drift report
