@@ -1,23 +1,32 @@
 """
-Interactive annotation tool for pickleball court kitchen lines.
+Interactive annotation tool for pickleball NVZ boundaries (side-facing camera).
 
-Camera setup: side/end-on view of the kitchen zone. Near baseline is
-off-screen. Visible lines: near kitchen line (front), far kitchen line
-(back), sidelines (slanted), net (center).
+Camera setup: camera faces the court from the side. The kitchen zone appears
+as a rectangle. The two NVZ boundary lines you see from this angle are the
+LEFT edge and RIGHT edge of that rectangle:
+
+    far-L ──────────────── far-R        ← back edge (for reference)
+      |                      |
+  LEFT NVZ               RIGHT NVZ
+  BOUNDARY               BOUNDARY
+      |                      |
+   near-L ──────────────── near-R       ← front edge (for reference)
+
+Click the four corners of the kitchen rectangle.  Clicks 1+3 define the
+LEFT NVZ boundary line; clicks 2+4 define the RIGHT NVZ boundary line.
+The green legal zones (outside both boundaries) appear in the preview
+once all four corners are placed.
 
 Click order
 -----------
-  1. Near kitchen line — LEFT end    [REQUIRED]
-  2. Near kitchen line — RIGHT end   [REQUIRED]
-  3. Far kitchen line  — LEFT end    [optional]
-  4. Far kitchen line  — RIGHT end   [optional]
-
-  The legal zone (green fill) is auto-derived from the near kitchen
-  line — no extra click needed.
+  1. LEFT  NVZ boundary — NEAR end   (front-left  corner)  [REQUIRED]
+  2. RIGHT NVZ boundary — NEAR end   (front-right corner)  [REQUIRED]
+  3. LEFT  NVZ boundary — FAR  end   (back-left   corner)  [optional]
+  4. RIGHT NVZ boundary — FAR  end   (back-right  corner)  [optional]
 
 Keys
 ----
-  P   toggle preview  (available after 2 clicks)
+  P   toggle preview  (green zones visible after all 4 clicks)
   U   undo last click
   R   reset all clicks
   S   save and quit   (any time after 2 clicks)
@@ -43,13 +52,23 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.court_model import CourtGeometryModel
 from src.viz import draw_court_model
 
+# clicks 1+3 → LEFT NVZ boundary line
+# clicks 2+4 → RIGHT NVZ boundary line
 CLICK_ORDER = [
-    ("kitchen_near_left",  "[1/4] Near kitchen line (front blue line) — LEFT end   [REQUIRED]"),
-    ("kitchen_near_right", "[2/4] Near kitchen line (front blue line) — RIGHT end  [REQUIRED]"),
-    ("kitchen_far_left",   "[3/4] Far kitchen line  (back blue line)  — LEFT end   [optional — S to skip]"),
-    ("kitchen_far_right",  "[4/4] Far kitchen line  (back blue line)  — RIGHT end  [optional — S to skip]"),
+    ("kitchen_near_left",  "[1/4] LEFT NVZ boundary  — NEAR end  (front-left corner)   [REQUIRED]"),
+    ("kitchen_near_right", "[2/4] RIGHT NVZ boundary — NEAR end  (front-right corner)  [REQUIRED]"),
+    ("kitchen_far_left",   "[3/4] LEFT NVZ boundary  — FAR end   (back-left corner)    [optional — S to skip]"),
+    ("kitchen_far_right",  "[4/4] RIGHT NVZ boundary — FAR end   (back-right corner)   [optional — S to skip]"),
 ]
 N_REQUIRED = 2
+
+# Dot labels shown in the preview image
+DOT_LABELS = {
+    "kitchen_near_left":  "L-near",
+    "kitchen_near_right": "R-near",
+    "kitchen_far_left":   "L-far",
+    "kitchen_far_right":  "R-far",
+}
 
 MAX_W, MAX_H = 1280, 720
 COLOR_REQUIRED = (0, 255, 80)
@@ -71,29 +90,12 @@ def _scale(H: int, W: int) -> float:
     return min(MAX_W / W, MAX_H / H, 1.0)
 
 
-def _derive_legal_ref(near_l: tuple, near_r: tuple) -> list:
-    """
-    Auto-generate a point on the camera side of the near kitchen line.
-    Uses the midpoint shifted 80px downward in image coords (y increases
-    toward camera for a side/end-on mount).
-    """
-    mx = (near_l[0] + near_r[0]) / 2.0
-    my = (near_l[1] + near_r[1]) / 2.0
-    return [mx, my + 80.0]
-
-
 def _build_anchors(clicks: list, scale: float = 1.0) -> dict:
-    """Build anchor dict from clicks, auto-adding legal_ref_near."""
+    """Build anchor dict from click list at the given pixel scale."""
     anchors = {}
     for i, pt in enumerate(clicks):
         key = CLICK_ORDER[i][0]
         anchors[key] = [float(pt[0]) * scale, float(pt[1]) * scale]
-    # Auto-derive legal reference from the near kitchen line
-    if "kitchen_near_left" in anchors and "kitchen_near_right" in anchors:
-        nl = anchors["kitchen_near_left"]
-        nr = anchors["kitchen_near_right"]
-        ref = _derive_legal_ref(nl, nr)
-        anchors["legal_ref_near"] = ref
     return anchors
 
 
@@ -113,31 +115,31 @@ def _render(base: np.ndarray, clicks: list, sc: float, preview: bool) -> np.ndar
     if preview and len(clicks) >= N_REQUIRED:
         out = _try_preview(clicks, sc, out)
 
-    # Draw completed anchor dots
+    # Anchor dots
     for i, (fx, fy) in enumerate(clicks):
         key, _ = CLICK_ORDER[i]
         dx, dy = int(fx * sc), int(fy * sc)
         color = COLOR_REQUIRED if i < N_REQUIRED else COLOR_OPTIONAL
         cv2.circle(out, (dx, dy), 7, color, -1)
         cv2.circle(out, (dx, dy), 7, (0, 0, 0), 1)
-        label = "near-L" if key == "kitchen_near_left" else \
-                "near-R" if key == "kitchen_near_right" else \
-                "far-L"  if key == "kitchen_far_left"  else "far-R"
-        cv2.putText(out, label, (dx + 9, dy + 5),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 1)
+        cv2.putText(out, DOT_LABELS[key], (dx + 9, dy + 5),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.42, color, 1)
 
-    # Status bar
+    # Status bar — next click description
     idx = len(clicks)
     if idx < len(CLICK_ORDER):
         desc = CLICK_ORDER[idx][1]
+    elif idx < 4:
+        desc = "Clicks 1+3 = LEFT NVZ line  |  Clicks 2+4 = RIGHT NVZ line  |  S to save"
     else:
-        desc = "All done — press S to save"
-    cv2.putText(out, desc, (10, H_d - 14), cv2.FONT_HERSHEY_SIMPLEX, 0.52, (0, 0, 0), 3)
-    cv2.putText(out, desc, (10, H_d - 14), cv2.FONT_HERSHEY_SIMPLEX, 0.52, COLOR_TEXT, 1)
+        desc = "All 4 corners set — P for preview  |  S to save"
+    cv2.putText(out, desc, (10, H_d - 14), cv2.FONT_HERSHEY_SIMPLEX, 0.50, (0, 0, 0), 3)
+    cv2.putText(out, desc, (10, H_d - 14), cv2.FONT_HERSHEY_SIMPLEX, 0.50, COLOR_TEXT, 1)
 
-    hint = "P=preview  U=undo  R=reset  S=save  Q=quit"
-    cv2.putText(out, hint, (10, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.48, (0, 0, 0), 3)
-    cv2.putText(out, hint, (10, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.48, COLOR_TEXT, 1)
+    # Key hints
+    hint = "P=preview(needs 4 clicks)  U=undo  R=reset  S=save  Q=quit"
+    cv2.putText(out, hint, (10, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.46, (0, 0, 0), 3)
+    cv2.putText(out, hint, (10, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.46, COLOR_TEXT, 1)
 
     return out
 
@@ -150,7 +152,7 @@ def main(video_path: Path, frame_idx: int, out_path: Path) -> None:
     clicks: list[tuple[int, int]] = []
     preview = False
 
-    win = "Annotate Kitchen Lines"
+    win = "Annotate NVZ Boundaries (side-facing camera)"
     cv2.namedWindow(win, cv2.WINDOW_NORMAL)
 
     def on_click(event, x, y, flags, param):
@@ -186,13 +188,14 @@ def main(video_path: Path, frame_idx: int, out_path: Path) -> None:
 
     cv2.destroyAllWindows()
 
-    anchors = _build_anchors(clicks)  # full-resolution, includes auto legal_ref
+    anchors = _build_anchors(clicks)
 
     annotation = {
         "_notes": (
-            f"Kitchen line anchor points ({W_src}x{H_src} px, frame {frame_idx}). "
-            "Camera is side/end-on — near baseline is off-screen. "
-            "legal_ref_near is auto-derived (not manually clicked). "
+            f"NVZ boundary anchor points ({W_src}x{H_src} px, frame {frame_idx}). "
+            "Side-facing camera — near baseline off-screen. "
+            "LEFT NVZ line = kitchen_near_left → kitchen_far_left. "
+            "RIGHT NVZ line = kitchen_near_right → kitchen_far_right. "
             "Re-annotate with scripts/annotate_anchors.py if overlay drifts."
         ),
         "video": video_path.name,
@@ -208,10 +211,13 @@ def main(video_path: Path, frame_idx: int, out_path: Path) -> None:
     try:
         m = CourtGeometryModel(anchors)
         kp = m.kitchen_endpoints()
-        print(f"  Near kitchen: {[round(c) for c in kp['near'][0]]} → {[round(c) for c in kp['near'][1]]}")
+        print(f"  Near edge: {[round(c) for c in kp['near'][0]]} → {[round(c) for c in kp['near'][1]]}")
         if "far" in kp:
-            print(f"  Far  kitchen: {[round(c) for c in kp['far'][0]]} → {[round(c) for c in kp['far'][1]]}")
-        print(f"  Legal sign: {m.legal_near_sign()}")
+            print(f"  Far  edge: {[round(c) for c in kp['far'][0]]} → {[round(c) for c in kp['far'][1]]}")
+            print(f"  LEFT  NVZ line: near-L {[round(c) for c in kp['near'][0]]} → far-L {[round(c) for c in kp['far'][0]]}")
+            print(f"  RIGHT NVZ line: near-R {[round(c) for c in kp['near'][1]]} → far-R {[round(c) for c in kp['far'][1]]}")
+            print(f"  Left  legal polygon: {m.left_legal_polygon is not None}")
+            print(f"  Right legal polygon: {m.right_legal_polygon is not None}")
     except Exception as e:
         print(f"  Geometry check: {e}")
 
