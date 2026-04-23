@@ -1,20 +1,27 @@
 {
-  "_notes": "PLACEHOLDER coords — run scripts/annotate_anchors.py to set precise values. Click: (1) left end of FRONT blue line, (2) right end of FRONT blue line, (3) near-left corner, (4) near-right corner, (5) any point behind the front line. Kitchen lines are the primary input; net and far geometry are inferred.",
+  "_notes": "NVZ boundary anchor points (1920x1080 px, frame 0). Side-facing camera \u2014 near baseline off-screen. LEFT NVZ line = kitchen_near_left \u2192 kitchen_far_left. RIGHT NVZ line = kitchen_near_right \u2192 kitchen_far_right. Re-annotate with scripts/annotate_anchors.py if overlay drifts.",
   "video": "pickle_vid_1.MOV",
   "reference_frame_index": 0,
   "annotated_frames": [
     {
       "frame_index": 0,
       "anchors": {
-        "kitchen_near_left": [197, 799],
-        "kitchen_near_right": [1651, 742],
-        "near_left": [18, 946],
-        "near_right": [1844, 874],
-        "legal_ref_near": [930, 870],
-        "kitchen_far_left": [367, 660],
-        "kitchen_far_right": [1467, 618],
-        "far_left": [549, 514],
-        "far_right": [1270, 490]
+        "kitchen_near_left": [
+          8.0,
+          956.0
+        ],
+        "kitchen_near_right": [
+          1845.0,
+          873.0
+        ],
+        "kitchen_far_left": [
+          554.0,
+          519.0
+        ],
+        "kitchen_far_right": [
+          1290.0,
+          506.0
+        ]
       }
     }
   ]
