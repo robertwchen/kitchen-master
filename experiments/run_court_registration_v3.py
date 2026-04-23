@@ -118,6 +118,7 @@ def run(config_path: Path) -> None:
     cfg = _load_config(config_path)
     run_name = cfg["run_name"]
     video_path = Path(cfg["video"]["path"])
+    start_frame = int(cfg["video"].get("start_frame", 0))
     ann_path = Path(cfg["annotations"]["path"])
     results_dir = Path(cfg["output"]["results_dir"]) / run_name
     results_dir.mkdir(parents=True, exist_ok=True)
@@ -178,7 +179,10 @@ def run(config_path: Path) -> None:
     draw_anchors = out_cfg.get("draw_anchors", True)
 
     # ── first pass: all frames ─────────────────────────────────────────────────
-    logger.info(f"Processing {total_frames} frames …")
+    logger.info(
+        f"Processing {total_frames} frames  "
+        f"(recording from frame {start_frame}, t={start_frame/src_fps:.1f}s) …"
+    )
     cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
     rows: list[dict] = []
@@ -208,6 +212,11 @@ def run(config_path: Path) -> None:
             H_mat = H_cumulative
             prev_H = H_cumulative
             n_ok += 1
+
+        # Skip shaky lead-in frames — still run registration for chain continuity
+        if frame_idx < start_frame:
+            frame_idx += 1
+            continue
 
         # Warp court model to current frame
         cur_model = ref_model.warp(H_mat)
@@ -309,45 +318,44 @@ def run(config_path: Path) -> None:
 
         cap2 = cv2.VideoCapture(str(video_path))
         written = 0
-        fidx2 = 0
         logger.info("Writing overlay video …")
-        while True:
+        for row_pos, r in enumerate(rows):
+            if row_pos % frame_step != 0:
+                continue
+            cap2.set(cv2.CAP_PROP_POS_FRAMES, int(r["frame_index"]))
             ret, frame = cap2.read()
             if not ret:
-                break
-            if fidx2 % frame_step == 0 and fidx2 < len(rows):
-                r = rows[fidx2]
-                scaled_anchors = {
-                    "kitchen_near_left": [
-                        r["kitchen_near_p1_x"] * scale, r["kitchen_near_p1_y"] * scale
-                    ],
-                    "kitchen_near_right": [
-                        r["kitchen_near_p2_x"] * scale, r["kitchen_near_p2_y"] * scale
-                    ],
-                }
-                if r.get("kitchen_far_p1_x") is not None:
-                    scaled_anchors["kitchen_far_left"] = [
-                        r["kitchen_far_p1_x"] * scale, r["kitchen_far_p1_y"] * scale
-                    ]
-                    scaled_anchors["kitchen_far_right"] = [
-                        r["kitchen_far_p2_x"] * scale, r["kitchen_far_p2_y"] * scale
-                    ]
-                small = cv2.resize(frame, (out_W, out_H))
-                try:
-                    frame_model = CourtGeometryModel(scaled_anchors)
-                    small = draw_court_model(
-                        small, frame_model,
-                        draw_anchors=draw_anchors, fallback=bool(r["fallback"])
-                    )
-                except Exception:
-                    pass
-                small = _draw_info_v3(
-                    small, fidx2, r["timestamp_s"],
-                    r["n_matches"], r["n_inliers"], r["status"], bool(r["fallback"])
+                continue
+            scaled_anchors = {
+                "kitchen_near_left": [
+                    r["kitchen_near_p1_x"] * scale, r["kitchen_near_p1_y"] * scale
+                ],
+                "kitchen_near_right": [
+                    r["kitchen_near_p2_x"] * scale, r["kitchen_near_p2_y"] * scale
+                ],
+            }
+            if r.get("kitchen_far_p1_x") is not None:
+                scaled_anchors["kitchen_far_left"] = [
+                    r["kitchen_far_p1_x"] * scale, r["kitchen_far_p1_y"] * scale
+                ]
+                scaled_anchors["kitchen_far_right"] = [
+                    r["kitchen_far_p2_x"] * scale, r["kitchen_far_p2_y"] * scale
+                ]
+            small = cv2.resize(frame, (out_W, out_H))
+            try:
+                frame_model = CourtGeometryModel(scaled_anchors)
+                small = draw_court_model(
+                    small, frame_model,
+                    draw_anchors=draw_anchors, fallback=bool(r["fallback"])
                 )
-                writer.write(small)
-                written += 1
-            fidx2 += 1
+            except Exception:
+                pass
+            small = _draw_info_v3(
+                small, int(r["frame_index"]), r["timestamp_s"],
+                r["n_matches"], r["n_inliers"], r["status"], bool(r["fallback"])
+            )
+            writer.write(small)
+            written += 1
         cap2.release()
         writer.release()
         logger.info(f"Overlay video: {overlay_path}  ({written} frames)")

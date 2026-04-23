@@ -2,6 +2,7 @@ run_name: court_reg_v3
 
 video:
   path: data/real/videos/pickle_vid_1.MOV
+  start_frame: 479          # skip first ~8s of camera shake (60fps × 8)
 
 annotations:
   path: data/real/annotations/annotations_v3.json
@@ -25,7 +26,7 @@ output:
   overlay_video_fps: 10.0
   overlay_video_scale: 0.5
   overlay_frame_step: 6
-  debug_frame_indices: [0, 60, 300, 600, 1200, 2400]
+  debug_frame_indices: [479, 540, 780, 1080, 1680, 2400]
   draw_anchors: true           # show anchor dots in debug frames
 
 validation:
