@@ -132,9 +132,7 @@ def run(config_path: Path) -> None:
     # ── load reference geometry ───────────────────────────────────────────────
     anchors, ref_frame_idx = _load_annotations(ann_path)
     ref_model = CourtGeometryModel(anchors)
-    legal_sign = ref_model.legal_near_sign(
-        tuple(anchors.get("legal_ref_near", [960, 800]))
-    )
+    legal_sign = ref_model.legal_near_sign()  # uses legal_ref_near anchor
     logger.info(f"Reference model loaded. Legal-side sign: {legal_sign:+d}")
 
     # ── open video + read reference frame ─────────────────────────────────────
@@ -319,24 +317,22 @@ def run(config_path: Path) -> None:
                 break
             if fidx2 % frame_step == 0 and fidx2 < len(rows):
                 r = rows[fidx2]
-                # Reconstruct scaled model for this frame
+                # Reconstruct scaled model for this frame.
+                # Kitchen endpoints come from per-frame CSV (tracked).
+                # Far corners and legal_ref come from reference (static camera).
+                ref_a = ref_model.anchor_dict()
                 scaled_anchors = {
-                    "near_left": [r["near_left_x"] * scale, r["near_left_y"] * scale],
-                    "near_right": [r["near_right_x"] * scale, r["near_right_y"] * scale],
-                    "net_left": [r["net_left_x"] * scale, r["net_left_y"] * scale],
-                    "net_right": [r["net_right_x"] * scale, r["net_right_y"] * scale],
-                    # far corners: warp from reference model at scale
-                    "far_left": [
-                        ref_model.far_left[0] * scale, ref_model.far_left[1] * scale
-                    ],
-                    "far_right": [
-                        ref_model.far_right[0] * scale, ref_model.far_right[1] * scale
-                    ],
                     "kitchen_near_left": [
                         r["kitchen_near_p1_x"] * scale, r["kitchen_near_p1_y"] * scale
                     ],
                     "kitchen_near_right": [
                         r["kitchen_near_p2_x"] * scale, r["kitchen_near_p2_y"] * scale
+                    ],
+                    "near_left":  [r["near_left_x"] * scale,  r["near_left_y"] * scale],
+                    "near_right": [r["near_right_x"] * scale, r["near_right_y"] * scale],
+                    "legal_ref_near": [
+                        ref_a["legal_ref_near"][0] * scale,
+                        ref_a["legal_ref_near"][1] * scale,
                     ],
                     "kitchen_far_left": [
                         r["kitchen_far_p1_x"] * scale, r["kitchen_far_p1_y"] * scale
@@ -344,6 +340,10 @@ def run(config_path: Path) -> None:
                     "kitchen_far_right": [
                         r["kitchen_far_p2_x"] * scale, r["kitchen_far_p2_y"] * scale
                     ],
+                    "far_left":  [ref_a["far_left"][0] * scale,  ref_a["far_left"][1] * scale],
+                    "far_right": [ref_a["far_right"][0] * scale, ref_a["far_right"][1] * scale],
+                    "net_left":  [r["net_left_x"] * scale,  r["net_left_y"] * scale],
+                    "net_right": [r["net_right_x"] * scale, r["net_right_y"] * scale],
                 }
                 small = cv2.resize(frame, (out_W, out_H))
                 try:

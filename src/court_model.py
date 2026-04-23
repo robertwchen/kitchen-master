@@ -1,10 +1,13 @@
 """
 Pickleball court geometry model derived from anchor points.
 
-Anchor points define the court structure in reference-frame pixel coordinates.
-All derived geometry (kitchen lines, legal zones, court polygon) is computed
-from these anchors. CourtGeometryModel.warp(H) propagates the entire model
-through a homography so the same structure works for any registered frame.
+Primary inputs are the directly annotated kitchen/NVZ lines (which are
+visible as blue lines on the court), plus the near-side baseline corners.
+The net position and far-side geometry are inferred from these.
+
+All derived geometry (net, far kitchen, legal zones, court polygon) is
+computed from the primary anchors. CourtGeometryModel.warp(H) propagates
+the entire model through a homography for per-frame registration.
 """
 
 import cv2
@@ -13,8 +16,10 @@ from typing import Optional
 
 from src.court_registration import LineModel
 
-# Kitchen line is 7 ft from net; each half-court is 22 ft deep.
-KITCHEN_FRACTION: float = 7.0 / 22.0
+# NVZ (kitchen) line is 7 ft from net.  Half-court depth = 22 ft.
+KITCHEN_FRAC: float = 7.0 / 22.0
+# Inverse: given kitchen line + near baseline, net = kitchen + (7/15)*(kitchen - baseline)
+NET_FROM_KITCHEN_FRAC: float = 7.0 / 15.0   # = KITCHEN_FRAC / (1 - KITCHEN_FRAC)
 
 
 class CourtGeometryModel:
@@ -23,24 +28,33 @@ class CourtGeometryModel:
 
     Required anchors
     ----------------
-    near_left    Bottom-left corner of the pickleball court (near-camera side).
-    near_right   Bottom-right corner (near-camera side).
-    far_left     Top-left corner (far side, behind net).
-    far_right    Top-right corner (far side).
-    net_left     Left anchor of the net (where net meets left sideline).
-    net_right    Right anchor of the net.
+    kitchen_near_left    Left end of the near (front) kitchen/NVZ line.
+    kitchen_near_right   Right end of the near (front) kitchen/NVZ line.
+    near_left            Near-side baseline, left court corner.
+    near_right           Near-side baseline, right court corner.
+    legal_ref_near       Any point clearly BEHIND the near kitchen line
+                         (in the legal zone, i.e. between kitchen and near baseline).
 
-    Optional anchors (override proportional inference)
-    --------------------------------------------------
-    kitchen_near_left    Near kitchen line ∩ left sideline.
-    kitchen_near_right   Near kitchen line ∩ right sideline.
-    kitchen_far_left     Far kitchen line ∩ left sideline.
-    kitchen_far_right    Far kitchen line ∩ right sideline.
-    legal_ref_near       A point clearly behind the near kitchen line (legal side).
+    Optional anchors (improve geometry accuracy if visible)
+    -------------------------------------------------------
+    kitchen_far_left     Left end of the far (back) kitchen/NVZ line.
+    kitchen_far_right    Right end of the far (back) kitchen/NVZ line.
+    far_left             Far-side baseline, left corner.
+    far_right            Far-side baseline, right corner.
+    net_left             Left sideline endpoint of the net.
+    net_right            Right sideline endpoint of the net.
+
+    Derived geometry (auto-filled when optional anchors are absent)
+    ---------------------------------------------------------------
+    net      Inferred at 7/15 past the kitchen line away from baseline.
+    far      Inferred by reflecting near corners through net.
+    far kitchen   Inferred at 7/22 from net toward far baseline.
     """
 
     REQUIRED = {
-        "near_left", "near_right", "far_left", "far_right", "net_left", "net_right"
+        "kitchen_near_left", "kitchen_near_right",
+        "near_left", "near_right",
+        "legal_ref_near",
     }
 
     def __init__(self, anchors: dict) -> None:
@@ -48,78 +62,103 @@ class CourtGeometryModel:
         if missing:
             raise ValueError(f"Missing required anchors: {sorted(missing)}")
 
-        # Store anchors as float numpy arrays
         self._raw: dict[str, np.ndarray] = {
             k: np.array(v, dtype=float) for k, v in anchors.items()
         }
-        self._recompute()
+        self._fill_derived()
+        self._build_geometry()
 
-    # ── internal ─────────────────────────────────────────────────────────────
+    # ── derivation ────────────────────────────────────────────────────────────
 
-    def _recompute(self) -> None:
+    def _fill_derived(self) -> None:
         r = self._raw
-        self.near_left = r["near_left"]
-        self.near_right = r["near_right"]
-        self.far_left = r["far_left"]
-        self.far_right = r["far_right"]
-        self.net_left = r["net_left"]
-        self.net_right = r["net_right"]
+        kn_l = r["kitchen_near_left"]
+        kn_r = r["kitchen_near_right"]
+        near_l = r["near_left"]
+        near_r = r["near_right"]
 
-        # Court polygon (near_left → near_right → far_right → far_left)
+        # Net: placed at 7/15 past the kitchen line (away from baseline)
+        if "net_left" not in r:
+            r["net_left"] = kn_l + NET_FROM_KITCHEN_FRAC * (kn_l - near_l)
+        if "net_right" not in r:
+            r["net_right"] = kn_r + NET_FROM_KITCHEN_FRAC * (kn_r - near_r)
+
+        net_l = r["net_left"]
+        net_r = r["net_right"]
+
+        # Far corners: reflect near corners through net if not provided
+        if "far_left" not in r:
+            r["far_left"] = 2.0 * net_l - near_l
+        if "far_right" not in r:
+            r["far_right"] = 2.0 * net_r - near_r
+
+        far_l = r["far_left"]
+        far_r = r["far_right"]
+
+        # Far kitchen line: 7/22 from net toward far baseline
+        if "kitchen_far_left" not in r:
+            r["kitchen_far_left"] = net_l + KITCHEN_FRAC * (far_l - net_l)
+        if "kitchen_far_right" not in r:
+            r["kitchen_far_right"] = net_r + KITCHEN_FRAC * (far_r - net_r)
+
+    # ── line / polygon construction ───────────────────────────────────────────
+
+    def _build_geometry(self) -> None:
+        r = self._raw
+        self.near_left  = r["near_left"]
+        self.near_right = r["near_right"]
+        self.far_left   = r["far_left"]
+        self.far_right  = r["far_right"]
+        self.net_left   = r["net_left"]
+        self.net_right  = r["net_right"]
+        self._kn_l = r["kitchen_near_left"]
+        self._kn_r = r["kitchen_near_right"]
+        self._kf_l = r["kitchen_far_left"]
+        self._kf_r = r["kitchen_far_right"]
+
         self.outer_polygon = np.array(
             [self.near_left, self.near_right, self.far_right, self.far_left],
             dtype=np.float32,
         )
 
-        # Structural lines
-        self.net_line = LineModel(tuple(self.net_left), tuple(self.net_right))
-        self.left_sideline = LineModel(tuple(self.near_left), tuple(self.far_left))
+        self.net_line      = LineModel(tuple(self.net_left),   tuple(self.net_right))
+        self.left_sideline  = LineModel(tuple(self.near_left),  tuple(self.far_left))
         self.right_sideline = LineModel(tuple(self.near_right), tuple(self.far_right))
-        self.near_baseline = LineModel(tuple(self.near_left), tuple(self.near_right))
-        self.far_baseline = LineModel(tuple(self.far_left), tuple(self.far_right))
+        self.near_baseline  = LineModel(tuple(self.near_left),  tuple(self.near_right))
+        self.far_baseline   = LineModel(tuple(self.far_left),   tuple(self.far_right))
 
-        # Near kitchen line
-        if "kitchen_near_left" in r and "kitchen_near_right" in r:
-            kn_l = r["kitchen_near_left"]
-            kn_r = r["kitchen_near_right"]
-        else:
-            kn_l = self.net_left + KITCHEN_FRACTION * (self.near_left - self.net_left)
-            kn_r = self.net_right + KITCHEN_FRACTION * (self.near_right - self.net_right)
-        self._raw.setdefault("kitchen_near_left", kn_l)
-        self._raw.setdefault("kitchen_near_right", kn_r)
-        self.near_kitchen_line = LineModel(tuple(kn_l), tuple(kn_r))
-        self._kn_l, self._kn_r = kn_l, kn_r
+        self.near_kitchen_line = LineModel(tuple(self._kn_l), tuple(self._kn_r))
+        self.far_kitchen_line  = LineModel(tuple(self._kf_l), tuple(self._kf_r))
 
-        # Far kitchen line
-        if "kitchen_far_left" in r and "kitchen_far_right" in r:
-            kf_l = r["kitchen_far_left"]
-            kf_r = r["kitchen_far_right"]
-        else:
-            kf_l = self.net_left + KITCHEN_FRACTION * (self.far_left - self.net_left)
-            kf_r = self.net_right + KITCHEN_FRACTION * (self.far_right - self.net_right)
-        self._raw.setdefault("kitchen_far_left", kf_l)
-        self._raw.setdefault("kitchen_far_right", kf_r)
-        self.far_kitchen_line = LineModel(tuple(kf_l), tuple(kf_r))
-        self._kf_l, self._kf_r = kf_l, kf_r
-
-        # Legal zone polygons (filled behind each kitchen line)
         self.near_legal_polygon = np.array(
-            [kn_l, kn_r, self.near_right, self.near_left], dtype=np.float32
+            [self._kn_l, self._kn_r, self.near_right, self.near_left],
+            dtype=np.float32,
         )
         self.far_legal_polygon = np.array(
-            [kf_l, kf_r, self.far_right, self.far_left], dtype=np.float32
+            [self._kf_l, self._kf_r, self.far_right, self.far_left],
+            dtype=np.float32,
         )
 
     # ── public API ────────────────────────────────────────────────────────────
 
-    def legal_near_sign(self, ref_pt: tuple) -> int:
-        """Return +1/-1 indicating which side of the near kitchen line is legal."""
+    def legal_near_sign(self, ref_pt: Optional[tuple] = None) -> int:
+        """
+        Return +1 or -1 indicating which side of the near kitchen line is legal.
+        Uses legal_ref_near anchor by default.
+        """
+        if ref_pt is None:
+            ref_pt = tuple(self._raw["legal_ref_near"].tolist())
         d = self.near_kitchen_line.signed_distance(ref_pt)
         return 1 if d >= 0 else -1
 
     def anchor_dict(self) -> dict:
-        """Return all effective anchor positions as plain Python lists."""
         return {k: v.tolist() for k, v in self._raw.items()}
+
+    def kitchen_endpoints(self) -> dict:
+        return {
+            "near": (tuple(self._kn_l.tolist()), tuple(self._kn_r.tolist())),
+            "far":  (tuple(self._kf_l.tolist()), tuple(self._kf_r.tolist())),
+        }
 
     def warp(self, H: np.ndarray) -> "CourtGeometryModel":
         """Return a new model with every anchor point warped through homography H."""
@@ -129,12 +168,3 @@ class CourtGeometryModel:
             warped = cv2.perspectiveTransform(p, H)
             new_anchors[key] = [float(warped[0, 0, 0]), float(warped[0, 0, 1])]
         return CourtGeometryModel(new_anchors)
-
-    def kitchen_endpoints(self) -> dict:
-        """
-        Return the two kitchen line segments as (p1, p2) tuples.
-        """
-        return {
-            "near": (tuple(self._kn_l.tolist()), tuple(self._kn_r.tolist())),
-            "far": (tuple(self._kf_l.tolist()), tuple(self._kf_r.tolist())),
-        }
