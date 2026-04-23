@@ -120,65 +120,70 @@ def export_debug_frame(
 
 def draw_court_model(
     frame: np.ndarray,
-    model,                 # CourtGeometryModel instance
-    legal_sign: int = -1,
-    alpha_court: float = 0.06,
-    alpha_legal: float = 0.12,
+    model,                  # CourtGeometryModel instance
+    legal_sign: int = -1,   # unused — kept for call-site compat
+    alpha_legal: float = 0.15,
     thickness: int = 2,
     draw_anchors: bool = True,
     draw_net: bool = True,
     fallback: bool = False,
 ) -> np.ndarray:
     """
-    Draw the full court geometry model onto a copy of frame.
+    Draw court geometry (side-facing camera view) onto a copy of frame.
 
-    Draws: outer court polygon, net line, near/far kitchen lines, legal zone
-    fill, and anchor dots (optional).
+    Green fill: left_legal_polygon (left of left NVZ boundary) and
+                right_legal_polygon (right of right NVZ boundary).
+    Lines drawn:
+      - Near kitchen line  (front edge of kitchen rectangle)
+      - Far kitchen line   (back edge, if annotated)
+      - Left NVZ boundary  (near-left → far-left, if annotated)
+      - Right NVZ boundary (near-right → far-right, if annotated)
     """
     out = frame.copy()
     H_frame, W_frame = out.shape[:2]
 
-    near_color = COLOR_FALLBACK if fallback else COLOR_NEAR
-    far_color  = COLOR_FALLBACK if fallback else COLOR_FAR
+    line_color = COLOR_FALLBACK if fallback else COLOR_NEAR
 
-    # ── legal zone fills ──────────────────────────────────────────────────────
-    for poly, fill in [
-        (model.near_legal_polygon, np.array(COLOR_LEGAL_FILL, dtype=np.float32)),
-        (model.far_legal_polygon,  np.array(COLOR_LEGAL_FILL, dtype=np.float32)),
-    ]:
-        pts = poly.reshape((-1, 1, 2)).astype(np.int32)
-        overlay = out.copy()
-        cv2.fillPoly(overlay, [pts], tuple(int(c) for c in fill))
-        out = cv2.addWeighted(overlay, alpha_legal, out, 1 - alpha_legal, 0)
+    # ── legal zone fills (left and right of the kitchen) ─────────────────────
+    for poly in (model.left_legal_polygon, model.right_legal_polygon):
+        if poly is not None:
+            pts = poly.reshape((-1, 1, 2)).astype(np.int32)
+            overlay = out.copy()
+            cv2.fillPoly(overlay, [pts], COLOR_LEGAL_FILL)
+            out = cv2.addWeighted(overlay, alpha_legal, out, 1 - alpha_legal, 0)
 
-    # ── outer court polygon ───────────────────────────────────────────────────
-    pts_outer = model.outer_polygon.reshape((-1, 1, 2)).astype(np.int32)
-    overlay = out.copy()
-    cv2.fillPoly(overlay, [pts_outer], tuple(int(c) for c in np.array(COLOR_COURT, dtype=np.float32)))
-    out = cv2.addWeighted(overlay, alpha_court, out, 1 - alpha_court, 0)
-    cv2.polylines(out, [pts_outer], isClosed=True, color=COLOR_COURT, thickness=1)
-
-    # ── net line ─────────────────────────────────────────────────────────────
-    if draw_net:
-        nl = model.net_line
-        pt1, pt2 = nl.endpoints_in_frame(W_frame, H_frame)
+    # ── net line (optional) ───────────────────────────────────────────────────
+    if draw_net and getattr(model, "net_line", None) is not None:
+        pt1, pt2 = model.net_line.endpoints_in_frame(W_frame, H_frame)
         cv2.line(out, pt1, pt2, COLOR_NET, thickness)
 
-    # ── kitchen lines ─────────────────────────────────────────────────────────
-    for label, line, color in [
-        ("near NVZ", model.near_kitchen_line, near_color),
-        ("far NVZ",  model.far_kitchen_line,  far_color),
-    ]:
+    # ── kitchen edge lines (near and far horizontal edges) ────────────────────
+    for line in (model.near_kitchen_line, model.far_kitchen_line):
+        if line is None:
+            continue
         pt1, pt2 = line.endpoints_in_frame(W_frame, H_frame)
-        cv2.line(out, pt1, pt2, color, thickness)
+        cv2.line(out, pt1, pt2, line_color, thickness)
+
+    # ── NVZ boundary lines (left and right — the key foot-fault lines) ────────
+    for label, line in (
+        ("NVZ left",  model.left_boundary_line),
+        ("NVZ right", model.right_boundary_line),
+    ):
+        if line is None:
+            continue
+        pt1, pt2 = line.endpoints_in_frame(W_frame, H_frame)
+        cv2.line(out, pt1, pt2, line_color, thickness + 1)
         mid_x = (pt1[0] + pt2[0]) // 2
         mid_y = (pt1[1] + pt2[1]) // 2
-        cv2.putText(out, label, (mid_x - 40, mid_y - 8),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.55, color, 2)
+        cv2.putText(out, label, (mid_x + 6, mid_y),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, line_color, 2)
 
     # ── anchor dots ───────────────────────────────────────────────────────────
     if draw_anchors:
+        skip = {"legal_ref_near"}
         for key, pt in model.anchor_dict().items():
+            if key in skip:
+                continue
             x, y = int(round(pt[0])), int(round(pt[1]))
             if 0 <= x < W_frame and 0 <= y < H_frame:
                 cv2.circle(out, (x, y), 5, COLOR_ANCHOR, -1)

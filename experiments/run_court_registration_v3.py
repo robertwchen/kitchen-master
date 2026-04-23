@@ -132,8 +132,11 @@ def run(config_path: Path) -> None:
     # ── load reference geometry ───────────────────────────────────────────────
     anchors, ref_frame_idx = _load_annotations(ann_path)
     ref_model = CourtGeometryModel(anchors)
-    legal_sign = ref_model.legal_near_sign()  # uses legal_ref_near anchor
-    logger.info(f"Reference model loaded. Legal-side sign: {legal_sign:+d}")
+    has_boundaries = ref_model.left_boundary_line is not None
+    logger.info(
+        f"Reference model loaded. "
+        f"Boundaries: {'left+right NVZ lines' if has_boundaries else 'near kitchen only'}"
+    )
 
     # ── open video + read reference frame ─────────────────────────────────────
     cap = cv2.VideoCapture(str(video_path))
@@ -262,7 +265,7 @@ def run(config_path: Path) -> None:
         # Debug frame
         if frame_idx in debug_indices:
             annotated = draw_court_model(
-                frame, cur_model, legal_sign=legal_sign,
+                frame, cur_model,
                 draw_anchors=draw_anchors, fallback=fallback
             )
             annotated = _draw_info_v3(
@@ -341,7 +344,7 @@ def run(config_path: Path) -> None:
                 try:
                     frame_model = CourtGeometryModel(scaled_anchors)
                     small = draw_court_model(
-                        small, frame_model, legal_sign=legal_sign,
+                        small, frame_model,
                         draw_anchors=draw_anchors, fallback=bool(r["fallback"])
                     )
                 except Exception:
@@ -363,7 +366,7 @@ def run(config_path: Path) -> None:
     sample_indices = np.linspace(0, len(rows) - 1, n_sample, dtype=int)
 
     cap3 = cv2.VideoCapture(str(video_path))
-    near_strengths, far_strengths, translations = [], [], []
+    left_strengths, right_strengths, translations = [], [], []
     for si in sample_indices:
         r = rows[si]
         cap3.set(cv2.CAP_PROP_POS_FRAMES, int(r["frame_index"]))
@@ -371,12 +374,18 @@ def run(config_path: Path) -> None:
         if not ret:
             continue
         gray = cv2.cvtColor(frm, cv2.COLOR_BGR2GRAY)
-        p1 = (r["kitchen_near_p1_x"], r["kitchen_near_p1_y"])
-        p2 = (r["kitchen_near_p2_x"], r["kitchen_near_p2_y"])
-        near_strengths.append(_edge_strength(gray, p1, p2))
-        p1f = (r["kitchen_far_p1_x"], r["kitchen_far_p1_y"])
-        p2f = (r["kitchen_far_p2_x"], r["kitchen_far_p2_y"])
-        far_strengths.append(_edge_strength(gray, p1f, p2f))
+        # Left boundary: near-left → far-left
+        if r.get("kitchen_far_p1_x") is not None:
+            left_strengths.append(_edge_strength(
+                gray,
+                (r["kitchen_near_p1_x"], r["kitchen_near_p1_y"]),
+                (r["kitchen_far_p1_x"],  r["kitchen_far_p1_y"]),
+            ))
+            right_strengths.append(_edge_strength(
+                gray,
+                (r["kitchen_near_p2_x"], r["kitchen_near_p2_y"]),
+                (r["kitchen_far_p2_x"],  r["kitchen_far_p2_y"]),
+            ))
         tx, ty = abs(r["H02"]), abs(r["H12"])
         translations.append(float(np.sqrt(tx * tx + ty * ty)))
     cap3.release()
@@ -394,22 +403,22 @@ def run(config_path: Path) -> None:
             "n": len(arr),
         }
 
-    near_stats = _stats(near_strengths)
-    far_stats = _stats(far_strengths)
+    left_stats  = _stats(left_strengths)
+    right_stats = _stats(right_strengths)
     trans_stats = _stats(translations)
 
     overall = (
         "stable"
-        if near_stats.get("cv", 1.0) < 0.20 and far_stats.get("cv", 1.0) < 0.20
+        if left_stats.get("cv", 1.0) < 0.20 and right_stats.get("cv", 1.0) < 0.20
         else "check"
     )
 
     validation = {
-        "near_kitchen_edge_strength": near_stats,
-        "far_kitchen_edge_strength": far_stats,
+        "left_boundary_edge_strength":  left_stats,
+        "right_boundary_edge_strength": right_stats,
         "homography_translation_px": trans_stats,
         "overall_assessment": overall,
-        "n_frames_sampled": len(near_strengths),
+        "n_frames_sampled": len(translations),
     }
 
     # ── summary report ────────────────────────────────────────────────────────
@@ -446,10 +455,10 @@ def run(config_path: Path) -> None:
     print("\n── court_reg_v3 results ──────────────────────────────────────────")
     print(f"  Registration:  {n_ok} ok  {n_fallback} fallback  "
           f"({n_fallback / max(1, total_frames) * 100:.1f}% fallback)")
-    print(f"  Near kitchen edge strength:  "
-          f"mean={near_stats.get('mean')}  cv={near_stats.get('cv')}")
-    print(f"  Far kitchen edge strength:   "
-          f"mean={far_stats.get('mean')}  cv={far_stats.get('cv')}")
+    print(f"  Left  boundary edge strength: "
+          f"mean={left_stats.get('mean')}  cv={left_stats.get('cv')}")
+    print(f"  Right boundary edge strength: "
+          f"mean={right_stats.get('mean')}  cv={right_stats.get('cv')}")
     print(f"  Homography translation (px): "
           f"mean={trans_stats.get('mean')}  max={trans_stats.get('max')}")
     print(f"  Overall: {overall}")

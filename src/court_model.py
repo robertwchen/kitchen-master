@@ -1,12 +1,27 @@
 """
-Pickleball court geometry model for a side/end-on camera showing the kitchen zone.
+Pickleball court geometry model for a side-facing camera showing the kitchen zone.
 
-The camera is positioned just outside the kitchen area and does not show the
-near baseline. Visible structures: near kitchen/NVZ line, net, far kitchen line,
-sidelines (slanted).
+The camera faces the court from the side (perpendicular to the baselines).
+From this view the kitchen appears as a rectangle:
 
-Primary inputs are the directly annotated kitchen line endpoints (clicked on the
-visible blue lines). Everything else is derived or optional.
+        far-L ──────────────── far-R      ← far kitchen line (back edge)
+          |                      |
+  LEFT    |     KITCHEN          |   RIGHT
+  LEGAL   |    (illegal zone)    |   LEGAL
+  ZONE    |                      |   ZONE
+          |                      |
+       near-L ──────────────── near-R     ← near kitchen line (front edge)
+
+The actual NVZ boundary lines visible from this camera are:
+  LEFT  boundary: near-L → far-L  (left edge of kitchen rectangle)
+  RIGHT boundary: near-R → far-R  (right edge of kitchen rectangle)
+
+Legal zones (green fill) extend outward:
+  left_legal_polygon  — to the LEFT  of the left  boundary line
+  right_legal_polygon — to the RIGHT of the right boundary line
+
+near_kitchen_line and far_kitchen_line are also stored for display and
+ORB stabilization (they are the most prominent horizontal lines in the image).
 """
 
 import cv2
@@ -18,29 +33,27 @@ from src.court_registration import LineModel
 
 class CourtGeometryModel:
     """
-    Court geometry from directly annotated kitchen line endpoints.
+    Court geometry from annotated kitchen-rectangle corners.
 
-    Required anchors
-    ----------------
-    kitchen_near_left    Left end of the near (front) blue NVZ line.
-    kitchen_near_right   Right end of the near (front) blue NVZ line.
-    legal_ref_near       Any point on the legal side of the near kitchen line
-                         (between kitchen line and camera — below the line in image).
+    Required anchors (2)
+    --------------------
+    kitchen_near_left    Left  end of the near (front) kitchen line.
+    kitchen_near_right   Right end of the near (front) kitchen line.
 
-    Optional anchors
-    ----------------
-    kitchen_far_left     Left end of the far (back) blue NVZ line.
-    kitchen_far_right    Right end of the far (back) blue NVZ line.
-    net_left             Left end of the net (where net meets left sideline).
-    net_right            Right end of the net.
-    sideline_near_left   A point on the left sideline (near side).
-    sideline_near_right  A point on the right sideline (near side).
+    Optional anchors (2)
+    --------------------
+    kitchen_far_left     Left  end of the far (back) kitchen line.
+    kitchen_far_right    Right end of the far (back) kitchen line.
+
+    When all four corners are present, the model builds the left and right
+    NVZ boundary lines and their outward legal-zone polygons.
+    Any legacy 'legal_ref_near' key in the anchor dict is silently preserved
+    (for round-trip warp compatibility) but not used in geometry.
     """
 
     REQUIRED = {
         "kitchen_near_left",
         "kitchen_near_right",
-        "legal_ref_near",
     }
 
     def __init__(self, anchors: dict) -> None:
@@ -53,103 +66,95 @@ class CourtGeometryModel:
         }
         self._build_geometry()
 
+    # ── internal ──────────────────────────────────────────────────────────────
+
     def _build_geometry(self) -> None:
         r = self._raw
         self._kn_l = r["kitchen_near_left"]
         self._kn_r = r["kitchen_near_right"]
 
-        self.near_kitchen_line = LineModel(
-            tuple(self._kn_l), tuple(self._kn_r)
-        )
+        # Near and far kitchen lines (horizontal edges — for display and ORB)
+        self.near_kitchen_line = LineModel(tuple(self._kn_l), tuple(self._kn_r))
 
-        # Far kitchen line (optional)
-        if "kitchen_far_left" in r and "kitchen_far_right" in r:
+        has_far = "kitchen_far_left" in r and "kitchen_far_right" in r
+        if has_far:
             self._kf_l = r["kitchen_far_left"]
             self._kf_r = r["kitchen_far_right"]
             self.far_kitchen_line: Optional[LineModel] = LineModel(
                 tuple(self._kf_l), tuple(self._kf_r)
             )
+
+            # NVZ boundary lines (the lines players must not cross to volley)
+            # LEFT:  near-left corner → far-left corner
+            # RIGHT: near-right corner → far-right corner
+            self.left_boundary_line: Optional[LineModel] = LineModel(
+                tuple(self._kn_l), tuple(self._kf_l)
+            )
+            self.right_boundary_line: Optional[LineModel] = LineModel(
+                tuple(self._kn_r), tuple(self._kf_r)
+            )
+
+            # Kitchen centre — used to determine which side of each boundary
+            # is inside the kitchen (illegal) so we can shade the outside (legal).
+            kitchen_center = (
+                self._kn_l + self._kn_r + self._kf_l + self._kf_r
+            ) / 4.0
+
+            self.left_legal_polygon: Optional[np.ndarray] = self._side_polygon(
+                self._kn_l, self._kf_l, self.left_boundary_line, kitchen_center
+            )
+            self.right_legal_polygon: Optional[np.ndarray] = self._side_polygon(
+                self._kn_r, self._kf_r, self.right_boundary_line, kitchen_center
+            )
         else:
             self._kf_l = self._kf_r = None
             self.far_kitchen_line = None
+            self.left_boundary_line = None
+            self.right_boundary_line = None
+            self.left_legal_polygon = None
+            self.right_legal_polygon = None
 
-        # Net line (optional)
-        if "net_left" in r and "net_right" in r:
-            self.net_line: Optional[LineModel] = LineModel(
-                tuple(r["net_left"]), tuple(r["net_right"])
-            )
-        else:
-            self.net_line = None
+    @staticmethod
+    def _side_polygon(
+        pt_near: np.ndarray,
+        pt_far: np.ndarray,
+        boundary: LineModel,
+        kitchen_center: np.ndarray,
+        lateral: float = 5000.0,
+        perp: float = 5000.0,
+    ) -> np.ndarray:
+        """
+        Build a large polygon that covers the legal zone on one side of a
+        boundary line.  Extends LATERAL px along the line and PERP px
+        outward (away from the kitchen centre).
+        """
+        # Unit vector along the boundary (near → far)
+        line_dir = pt_far - pt_near
+        length = np.linalg.norm(line_dir)
+        if length > 1e-9:
+            line_dir = line_dir / length
 
-        # Legal zone polygon: covers the entire region on the legal (camera) side
-        # of the near kitchen line, reaching all the way to the frame edges.
-        #
-        # Two extensions are needed:
-        #   1. Lateral (along the line): push the endpoints far left/right so
-        #      the polygon spans the full frame width regardless of where the
-        #      user clicked.
-        #   2. Perpendicular (toward camera): push those extended corners far in
-        #      the legal direction so the polygon reaches the frame bottom/sides.
-        kn_l, kn_r = self._kn_l, self._kn_r
-        LATERAL = 5000.0   # px along the kitchen line direction
-        PERP = 5000.0      # px toward camera (perpendicular to line)
+        # Stretch endpoints well past the frame in both directions
+        ext_near = pt_near - line_dir * lateral
+        ext_far  = pt_far  + line_dir * lateral
 
-        # Unit vector along the line (left → right)
-        line_dir = kn_r - kn_l
-        line_len = np.linalg.norm(line_dir)
-        if line_len > 1e-9:
-            line_dir = line_dir / line_len
-
-        # Extrapolate the line far past both endpoints
-        far_l = kn_l - line_dir * LATERAL
-        far_r = kn_r + line_dir * LATERAL
-
-        # Unit normal pointing toward the legal (camera) side
-        sign = self.legal_near_sign()
-        na = self.near_kitchen_line.a * sign
-        nb = self.near_kitchen_line.b * sign
+        # Normal pointing AWAY from the kitchen (outward = legal side)
+        inside_d = boundary.signed_distance(tuple(kitchen_center))
+        outside_sign = -1.0 if inside_d >= 0 else 1.0
+        na = boundary.a * outside_sign
+        nb = boundary.b * outside_sign
         nn = np.sqrt(na * na + nb * nb)
         if nn > 1e-9:
             na /= nn
             nb /= nn
-        perp = np.array([na * PERP, nb * PERP])
+        out_vec = np.array([na * perp, nb * perp])
 
-        self.near_legal_polygon = np.array(
-            [far_l, far_r, far_r + perp, far_l + perp], dtype=np.float32
+        return np.array(
+            [ext_near, ext_far, ext_far + out_vec, ext_near + out_vec],
+            dtype=np.float32,
         )
 
-        # Far legal polygon (opposite side of far kitchen line)
-        if self._kf_l is not None and self._kf_r is not None:
-            kf_l, kf_r = self._kf_l, self._kf_r
-            far_kf_dir = kf_r - kf_l
-            far_kf_len = np.linalg.norm(far_kf_dir)
-            if far_kf_len > 1e-9:
-                far_kf_dir = far_kf_dir / far_kf_len
-            ffar_l = kf_l - far_kf_dir * LATERAL
-            ffar_r = kf_r + far_kf_dir * LATERAL
-
-            fa = self.far_kitchen_line.a * (-sign)
-            fb = self.far_kitchen_line.b * (-sign)
-            fn = np.sqrt(fa * fa + fb * fb)
-            if fn > 1e-9:
-                fa /= fn
-                fb /= fn
-            fperp = np.array([fa * PERP, fb * PERP])
-
-            self.far_legal_polygon: Optional[np.ndarray] = np.array(
-                [ffar_l, ffar_r, ffar_r + fperp, ffar_l + fperp], dtype=np.float32
-            )
-        else:
-            self.far_legal_polygon = None
-
     # ── public API ────────────────────────────────────────────────────────────
-
-    def legal_near_sign(self, ref_pt: Optional[tuple] = None) -> int:
-        """Return +1/-1 indicating which side of the near kitchen line is legal."""
-        if ref_pt is None:
-            ref_pt = tuple(self._raw["legal_ref_near"].tolist())
-        d = self.near_kitchen_line.signed_distance(ref_pt)
-        return 1 if d >= 0 else -1
 
     def anchor_dict(self) -> dict:
         return {k: v.tolist() for k, v in self._raw.items()}
