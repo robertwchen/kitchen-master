@@ -57,7 +57,7 @@ class FrameStabilizer:
         logger.info(f"Reference frame set: {len(kp)} ORB keypoints")
 
     def estimate_transform(
-        self, frame: np.ndarray
+        self, frame: np.ndarray, update_ref_on_success: bool = False
     ) -> tuple[Optional[np.ndarray], dict]:
         """
         Estimate 3×3 homography from reference → current frame.
@@ -131,6 +131,10 @@ class FrameStabilizer:
         if not self._sanity_check(H_mat):
             info["status"] = "sanity_failed"
             return None, info
+
+        if update_ref_on_success:
+            self._ref_kp = kp
+            self._ref_des = des
 
         return H_mat, info
 

@@ -179,6 +179,7 @@ def run(config_path: Path) -> None:
     cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
     rows: list[dict] = []
+    H_cumulative = np.eye(3, dtype=np.float64)
     prev_H = np.eye(3, dtype=np.float64)
     n_ok = 0
     n_fallback = 0
@@ -190,14 +191,19 @@ def run(config_path: Path) -> None:
             break
 
         ts = frame_idx / src_fps
-        H_mat, info = stabilizer.estimate_transform(frame)
-        fallback = H_mat is None
+        # update_ref_on_success=True: each successful frame becomes the new
+        # reference, keeping the matching horizon short and reducing fallbacks.
+        H_rel, info = stabilizer.estimate_transform(frame, update_ref_on_success=True)
+        fallback = H_rel is None
 
         if fallback:
             H_mat = prev_H
             n_fallback += 1
         else:
-            prev_H = H_mat
+            # Compose: H_cumulative maps original ref → current frame
+            H_cumulative = H_rel @ H_cumulative
+            H_mat = H_cumulative
+            prev_H = H_cumulative
             n_ok += 1
 
         # Warp court model to current frame
@@ -206,30 +212,29 @@ def run(config_path: Path) -> None:
         # Optional refinement of kitchen lines
         near_refine, far_refine = 0, 0
         if do_refine and not fallback:
-            near_line = cur_model.near_kitchen_line
-            far_line = cur_model.far_kitchen_line
-
-            nr_p1, nr_p2, near_refine = _apply_refinement(
-                frame, near_line, refine_search_px, refine_n_pts, src_W, src_H
-            )
-            fr_p1, fr_p2, far_refine = _apply_refinement(
-                frame, far_line, refine_search_px, refine_n_pts, src_W, src_H
-            )
-            # Patch kitchen anchors with refined positions
             refined_anchors = cur_model.anchor_dict()
+            nr_p1, nr_p2, near_refine = _apply_refinement(
+                frame, cur_model.near_kitchen_line,
+                refine_search_px, refine_n_pts, src_W, src_H
+            )
             refined_anchors["kitchen_near_left"] = list(nr_p1)
             refined_anchors["kitchen_near_right"] = list(nr_p2)
-            refined_anchors["kitchen_far_left"] = list(fr_p1)
-            refined_anchors["kitchen_far_right"] = list(fr_p2)
+            if cur_model.far_kitchen_line is not None:
+                fr_p1, fr_p2, far_refine = _apply_refinement(
+                    frame, cur_model.far_kitchen_line,
+                    refine_search_px, refine_n_pts, src_W, src_H
+                )
+                refined_anchors["kitchen_far_left"] = list(fr_p1)
+                refined_anchors["kitchen_far_right"] = list(fr_p2)
             try:
                 cur_model = CourtGeometryModel(refined_anchors)
             except Exception:
-                pass  # keep unrefined if patching fails
+                pass
 
         # Build CSV row
         H_flat = H_mat.flatten().tolist()
-        a = cur_model.anchor_dict()
         kp = cur_model.kitchen_endpoints()
+        has_far = "far" in kp
 
         row: dict = {
             "frame_index": frame_idx,
@@ -241,22 +246,14 @@ def run(config_path: Path) -> None:
             "n_inliers": info["n_inliers"],
             "status": info["status"],
             "fallback": int(fallback),
-            "near_left_x": round(a["near_left"][0], 2),
-            "near_left_y": round(a["near_left"][1], 2),
-            "near_right_x": round(a["near_right"][0], 2),
-            "near_right_y": round(a["near_right"][1], 2),
-            "net_left_x": round(a["net_left"][0], 2),
-            "net_left_y": round(a["net_left"][1], 2),
-            "net_right_x": round(a["net_right"][0], 2),
-            "net_right_y": round(a["net_right"][1], 2),
             "kitchen_near_p1_x": round(kp["near"][0][0], 2),
             "kitchen_near_p1_y": round(kp["near"][0][1], 2),
             "kitchen_near_p2_x": round(kp["near"][1][0], 2),
             "kitchen_near_p2_y": round(kp["near"][1][1], 2),
-            "kitchen_far_p1_x": round(kp["far"][0][0], 2),
-            "kitchen_far_p1_y": round(kp["far"][0][1], 2),
-            "kitchen_far_p2_x": round(kp["far"][1][0], 2),
-            "kitchen_far_p2_y": round(kp["far"][1][1], 2),
+            "kitchen_far_p1_x": round(kp["far"][0][0], 2) if has_far else None,
+            "kitchen_far_p1_y": round(kp["far"][0][1], 2) if has_far else None,
+            "kitchen_far_p2_x": round(kp["far"][1][0], 2) if has_far else None,
+            "kitchen_far_p2_y": round(kp["far"][1][1], 2) if has_far else None,
             "near_refine_offset_px": near_refine,
             "far_refine_offset_px": far_refine,
         }
@@ -317,9 +314,8 @@ def run(config_path: Path) -> None:
                 break
             if fidx2 % frame_step == 0 and fidx2 < len(rows):
                 r = rows[fidx2]
-                # Reconstruct scaled model for this frame.
-                # Kitchen endpoints come from per-frame CSV (tracked).
-                # Far corners and legal_ref come from reference (static camera).
+                # Reconstruct scaled model from per-frame kitchen endpoints.
+                # legal_ref_near comes from reference (warped through H if needed).
                 ref_a = ref_model.anchor_dict()
                 scaled_anchors = {
                     "kitchen_near_left": [
@@ -328,23 +324,19 @@ def run(config_path: Path) -> None:
                     "kitchen_near_right": [
                         r["kitchen_near_p2_x"] * scale, r["kitchen_near_p2_y"] * scale
                     ],
-                    "near_left":  [r["near_left_x"] * scale,  r["near_left_y"] * scale],
-                    "near_right": [r["near_right_x"] * scale, r["near_right_y"] * scale],
                     "legal_ref_near": [
                         ref_a["legal_ref_near"][0] * scale,
                         ref_a["legal_ref_near"][1] * scale,
                     ],
-                    "kitchen_far_left": [
-                        r["kitchen_far_p1_x"] * scale, r["kitchen_far_p1_y"] * scale
-                    ],
-                    "kitchen_far_right": [
-                        r["kitchen_far_p2_x"] * scale, r["kitchen_far_p2_y"] * scale
-                    ],
-                    "far_left":  [ref_a["far_left"][0] * scale,  ref_a["far_left"][1] * scale],
-                    "far_right": [ref_a["far_right"][0] * scale, ref_a["far_right"][1] * scale],
-                    "net_left":  [r["net_left_x"] * scale,  r["net_left_y"] * scale],
-                    "net_right": [r["net_right_x"] * scale, r["net_right_y"] * scale],
                 }
+                # Add far kitchen if recorded
+                if r.get("kitchen_far_p1_x") is not None:
+                    scaled_anchors["kitchen_far_left"] = [
+                        r["kitchen_far_p1_x"] * scale, r["kitchen_far_p1_y"] * scale
+                    ]
+                    scaled_anchors["kitchen_far_right"] = [
+                        r["kitchen_far_p2_x"] * scale, r["kitchen_far_p2_y"] * scale
+                    ]
                 small = cv2.resize(frame, (out_W, out_H))
                 try:
                     frame_model = CourtGeometryModel(scaled_anchors)
