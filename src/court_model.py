@@ -81,38 +81,63 @@ class CourtGeometryModel:
         else:
             self.net_line = None
 
-        # Legal zone polygon: the area on the legal side of the near kitchen line
-        # that extends all the way to the frame edges (camera side).
-        # Use a 3000px extension in the legal direction — large enough to always
-        # reach beyond any frame boundary.
+        # Legal zone polygon: covers the entire region on the legal (camera) side
+        # of the near kitchen line, reaching all the way to the frame edges.
+        #
+        # Two extensions are needed:
+        #   1. Lateral (along the line): push the endpoints far left/right so
+        #      the polygon spans the full frame width regardless of where the
+        #      user clicked.
+        #   2. Perpendicular (toward camera): push those extended corners far in
+        #      the legal direction so the polygon reaches the frame bottom/sides.
         kn_l, kn_r = self._kn_l, self._kn_r
-        EXTEND = 3000.0
+        LATERAL = 5000.0   # px along the kitchen line direction
+        PERP = 5000.0      # px toward camera (perpendicular to line)
+
+        # Unit vector along the line (left → right)
+        line_dir = kn_r - kn_l
+        line_len = np.linalg.norm(line_dir)
+        if line_len > 1e-9:
+            line_dir = line_dir / line_len
+
+        # Extrapolate the line far past both endpoints
+        far_l = kn_l - line_dir * LATERAL
+        far_r = kn_r + line_dir * LATERAL
+
+        # Unit normal pointing toward the legal (camera) side
         sign = self.legal_near_sign()
         na = self.near_kitchen_line.a * sign
         nb = self.near_kitchen_line.b * sign
-        norm = np.sqrt(na * na + nb * nb)
-        if norm > 1e-9:
-            na /= norm
-            nb /= norm
-        bot_l = np.array([kn_l[0] + na * EXTEND, kn_l[1] + nb * EXTEND])
-        bot_r = np.array([kn_r[0] + na * EXTEND, kn_r[1] + nb * EXTEND])
+        nn = np.sqrt(na * na + nb * nb)
+        if nn > 1e-9:
+            na /= nn
+            nb /= nn
+        perp = np.array([na * PERP, nb * PERP])
+
         self.near_legal_polygon = np.array(
-            [kn_l, kn_r, bot_r, bot_l], dtype=np.float32
+            [far_l, far_r, far_r + perp, far_l + perp], dtype=np.float32
         )
 
         # Far legal polygon (opposite side of far kitchen line)
         if self._kf_l is not None and self._kf_r is not None:
             kf_l, kf_r = self._kf_l, self._kf_r
+            far_kf_dir = kf_r - kf_l
+            far_kf_len = np.linalg.norm(far_kf_dir)
+            if far_kf_len > 1e-9:
+                far_kf_dir = far_kf_dir / far_kf_len
+            ffar_l = kf_l - far_kf_dir * LATERAL
+            ffar_r = kf_r + far_kf_dir * LATERAL
+
             fa = self.far_kitchen_line.a * (-sign)
             fb = self.far_kitchen_line.b * (-sign)
             fn = np.sqrt(fa * fa + fb * fb)
             if fn > 1e-9:
                 fa /= fn
                 fb /= fn
-            ftop_l = np.array([kf_l[0] + fa * EXTEND, kf_l[1] + fb * EXTEND])
-            ftop_r = np.array([kf_r[0] + fa * EXTEND, kf_r[1] + fb * EXTEND])
+            fperp = np.array([fa * PERP, fb * PERP])
+
             self.far_legal_polygon: Optional[np.ndarray] = np.array(
-                [kf_l, kf_r, ftop_r, ftop_l], dtype=np.float32
+                [ffar_l, ffar_r, ffar_r + fperp, ffar_l + fperp], dtype=np.float32
             )
         else:
             self.far_legal_polygon = None
