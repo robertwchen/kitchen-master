@@ -317,9 +317,6 @@ def run(config_path: Path) -> None:
                 break
             if fidx2 % frame_step == 0 and fidx2 < len(rows):
                 r = rows[fidx2]
-                # Reconstruct scaled model from per-frame kitchen endpoints.
-                # legal_ref_near comes from reference (warped through H if needed).
-                ref_a = ref_model.anchor_dict()
                 scaled_anchors = {
                     "kitchen_near_left": [
                         r["kitchen_near_p1_x"] * scale, r["kitchen_near_p1_y"] * scale
@@ -327,12 +324,7 @@ def run(config_path: Path) -> None:
                     "kitchen_near_right": [
                         r["kitchen_near_p2_x"] * scale, r["kitchen_near_p2_y"] * scale
                     ],
-                    "legal_ref_near": [
-                        ref_a["legal_ref_near"][0] * scale,
-                        ref_a["legal_ref_near"][1] * scale,
-                    ],
                 }
-                # Add far kitchen if recorded
                 if r.get("kitchen_far_p1_x") is not None:
                     scaled_anchors["kitchen_far_left"] = [
                         r["kitchen_far_p1_x"] * scale, r["kitchen_far_p1_y"] * scale
