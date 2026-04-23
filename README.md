@@ -16,84 +16,103 @@ Research prototype for pickleball NVZ foot-fault detection from a fixed side-vie
 | `fault` | Foot touches or crosses the line |
 | `uncertain` | Cannot be determined reliably |
 
-## Repo Structure
+---
 
-```
-docs/                        problem definition and research plan
-data/
-  sim/                       generated synthetic frames (gitignored)
-  real/
-    videos/                  raw video clips (gitignored)
-    frames/                  extracted frames (gitignored)
-    annotations.csv          frame-level labels: frame_path, true_label, notes
-src/
-  config.py                  YAML config loader and defaults
-  sim_generator.py           synthetic frame generation with full SampleMeta
-  baseline_detector.py       Hough line + HSV foot detection + classify
-  evaluate.py                metrics, failure analysis, overlays, CSV/PNG output
-experiments/
-  configs/sim_v1.yaml        experiment config
-  run_sim.py                 full synthetic pipeline (generate → detect → evaluate)
-  run_eval.py                re-evaluate from saved predictions.csv
-  run_real.py                run baseline on real labeled frames
-results/
-  sim_v1/
-    metadata.csv             per-sample ground-truth parameters
-    predictions.csv          true vs predicted labels
-    metrics.csv              precision, recall, rates
-    confusion_matrix.csv     confusion matrix as CSV
-    confusion_matrix.png     confusion matrix plot
-    failure_analysis.csv     accuracy grouped by scenario/occlusion/blur/distance
-    overlays/                annotated overlay images (correct + wrong predictions)
-tests/                       27 unit tests
+## Phase 1 — Court Registration (real video)
+
+**Goal:** Prove that court geometry (NVZ kitchen lines) can be reliably registered on real footage before any foot-fault classification is attempted.
+
+### Step 1 — Extract reference frames
+
+```bash
+python scripts/extract_frames.py \
+    --video data/real/videos/pickle_vid_1.MOV \
+    --out   data/real/frames/ \
+    --fps   5
 ```
 
-## Quickstart
+Saves `data/real/frames/<stem>_frameNNNNN.jpg` and `manifest.csv`.
+
+### Step 2 — Annotate kitchen line endpoints
+
+**Option A — Interactive (recommended):**
+```bash
+python scripts/annotate_reference.py \
+    --video data/real/videos/pickle_vid_1.MOV \
+    --frame 60 \
+    --out   data/real/annotations/annotations.json
+```
+
+Click order: near kitchen line p1 → p2, far kitchen line p1 → p2, legal-side reference point.
+Keys: `U` undo, `R` reset, `S` save, `Q` quit.
+
+**Option B — Edit JSON manually:**
+Copy `data/real/annotations/annotations_template.json`, fill in pixel coordinates
+from the reference frame images saved in `data/real/annotations/`.
+
+Current annotations (`annotations.json`) were auto-derived from Hough line detection
+on frame 599 (t=10s) and visually verified. Refine with the tool above if needed.
+
+### Step 3 — Run court registration
+
+```bash
+python experiments/run_court_registration.py \
+    --config experiments/configs/court_reg_v1.yaml
+```
+
+**Outputs** (`results/real_baseline/court_reg_v1/`):
+
+| File | Description |
+|------|-------------|
+| `line_params.csv` | Per-frame line parameters (constant for static camera, 2535 rows) |
+| `summary_report.json` | Line equations, refinement offset, stability stats |
+| `debug_frames/frame_NNNNN.png` | Annotated overlay images at selected frames |
+| `overlay.mp4` | Annotated overlay video (960×540, 10fps) |
+
+### Phase 1 Results (court_reg_v1)
+
+| Property | Value |
+|----------|-------|
+| Video | pickle_vid_1.MOV — 1920×1080, 59.94fps, 2535 frames (42.3s) |
+| Near kitchen line | y = 469px, spans x=[0, 950] |
+| Far kitchen line | y = 469px, spans x=[960, 1919] |
+| Refinement offset | 0px (annotations aligned well) |
+| Edge strength (mean/std) | 51.6 / 29.5 (CV=0.57) |
+| Stability note | High CV is expected — players periodically occlude the line; camera geometry is fixed |
+
+---
+
+## Phase 2 (planned) — Foot localization + event detection
+
+Placeholders exist in `src/foot_localizer.py` and `src/event_detector.py`.
+These will be connected to the registered court geometry in Phase 2.
+
+---
+
+## Synthetic Pipeline (Phase 0)
+
+### Quickstart
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-# Synthetic pipeline — generates data, runs detector, saves all outputs
+# Synthetic pipeline (generate → detect → evaluate)
 python experiments/run_sim.py --config experiments/configs/sim_v1.yaml
 
 # Re-evaluate from saved predictions
 python experiments/run_eval.py --results results/sim_v1/
 
-# Real data — label frames in data/real/annotations.csv first
-python experiments/run_real.py --annotations data/real/annotations.csv --results results/real_v1/
+# Real labeled frames (after filling annotations.csv)
+python experiments/run_real.py \
+    --annotations data/real/annotations.csv \
+    --results results/real_v1/
 
 # Tests
 pytest tests/
 ```
 
-## Real Data Workflow
-
-1. Record clips from a fixed side-view angle, place in `data/real/videos/`
-2. Extract frames (e.g. `ffmpeg -i clip.mp4 -vf fps=5 data/real/frames/clip_frame%03d.jpg`)
-3. Fill in `data/real/annotations.csv`:
-
-```
-frame_path,true_label,notes
-data/real/frames/clip01_frame042.jpg,legal,clear view
-data/real/frames/clip01_frame087.jpg,fault,foot over line
-data/real/frames/clip02_frame015.jpg,uncertain,shadow occlusion
-```
-
-4. `python experiments/run_real.py`
-
-## Implemented Detector
-
-Classical CV pipeline — no learned model:
-
-1. **Line detection**: Canny edges → Hough line transform → median y of horizontal segments
-2. **Foot detection**: HSV color mask (green range for sim; adapt for real footage)
-3. **Classification**: `gap = line_y − foot_bottom`
-   - `gap > uncertain_margin_px` → `legal`
-   - `gap < −fault_threshold_px` → `fault`
-   - otherwise → `uncertain`
-
-## Sim v1 Preliminary Results (200 frames, seed=42)
+### Synthetic Results (sim_v1, 200 frames, seed=42)
 
 | Metric | Value |
 |--------|-------|
@@ -102,13 +121,61 @@ Classical CV pipeline — no learned model:
 | Uncertain rate | **27.0%** |
 | Legal P / R | 1.000 / 0.940 |
 | Fault P / R | 0.505 / 1.000 |
-| Uncertain P / R | 0.944 / 0.510 |
 
-Key finding from failure analysis: fault precision of 0.505 is driven by borderline samples
-(distance −3 to +3 px) being predicted as `fault` instead of `uncertain`. This is the
-core tension RQ3 addresses — the `uncertain_margin_px` threshold controls the tradeoff.
+---
+
+## Implemented Baseline Detector
+
+Classical CV — no learned model:
+
+1. **Line detection**: Canny edges → Hough line transform → median y of horizontal segments
+2. **Foot detection**: HSV color mask (green range for sim; adapt hue bounds for real footage)
+3. **Classification**: `gap = line_y − foot_bottom`
+   - `gap > uncertain_margin_px` → `legal`
+   - `gap < −fault_threshold_px` → `fault`
+   - otherwise → `uncertain`
+
+---
+
+## Repo Structure
+
+```
+docs/                           problem definition and research plan
+scripts/
+  extract_frames.py             extract frames from video with manifest CSV
+  annotate_reference.py         interactive click-to-annotate kitchen line tool
+src/
+  config.py                     YAML config loader
+  court_registration.py         Phase 1 — LineModel + CourtRegistration class
+  viz.py                        overlay drawing, legal zone shading, video writer
+  sim_generator.py              synthetic frame generation with SampleMeta
+  baseline_detector.py          Hough + HSV + margin classify
+  evaluate.py                   metrics, failure analysis, CSV/PNG output
+  foot_localizer.py             Phase 2 placeholder
+  event_detector.py             Phase 2 placeholder
+data/real/
+  videos/                       raw video clips (gitignored)
+  frames/                       extracted frames (gitignored)
+  annotations/
+    annotations.json            current reference annotation
+    annotations_template.json   blank template
+    reference_frame_*.jpg       reference frames for manual annotation
+  annotations.csv               frame-level labels for Phase 0 real eval
+experiments/
+  configs/
+    sim_v1.yaml                 synthetic experiment config
+    court_reg_v1.yaml           court registration config
+  run_sim.py                    Phase 0 synthetic pipeline
+  run_eval.py                   re-evaluate from saved predictions
+  run_real.py                   Phase 0 real data eval
+  run_court_registration.py     Phase 1 court registration pipeline
+results/
+  sim_v1/                       synthetic pipeline outputs
+  real_baseline/court_reg_v1/   Phase 1 outputs (overlay video, line CSV, report)
+tests/                          27 unit tests
+```
 
 ## Reproducibility
 
-All outputs under `results/<run_name>/` are generated by code from config. Raw frames are
-gitignored. Regenerate by running `run_sim.py` with the same config and seed.
+All experiment outputs under `results/` are generated by code from config.
+Raw video and frames are gitignored. Re-generate outputs by running the pipeline scripts.

@@ -11,4 +11,9 @@ data/real/raw/*
 data/real/temp/*
 data/real/frames/*
 !data/real/frames/.gitkeep
+data/real/videos/*.MOV
+data/real/videos/*.mov
+data/real/videos/*.mp4
+data/real/videos/*.MP4
+data/real/videos/*.avi
 data/sim/raw/*

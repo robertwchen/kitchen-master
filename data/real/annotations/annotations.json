@@ -1,0 +1,18 @@
+{
+  "_notes": "Pixel coordinates (x, y) from top-left of 1920x1080 full-resolution frame. Derived from Hough line detection on frame 599 (t=10s) and visual verification. near_kitchen_line = NVZ line for the left-side player; far_kitchen_line = NVZ line for the right-side player. Both lines run at y~469, spanning left and right halves of the frame respectively (net is at x~960). Use scripts/annotate_reference.py to refine these coordinates if the overlay does not align with the painted line.",
+  "video": "pickle_vid_1.MOV",
+  "annotated_frames": [
+    {
+      "frame_index": 599,
+      "near_kitchen_line": {
+        "p1": [0, 469],
+        "p2": [950, 469]
+      },
+      "far_kitchen_line": {
+        "p1": [960, 469],
+        "p2": [1919, 469]
+      },
+      "legal_side_reference_point": [300, 750]
+    }
+  ]
+}
