@@ -35,5 +35,6 @@ def get_default_config() -> dict:
             "results_dir": "results/",
             "save_plots": True,
             "save_frames": False,
+            "save_overlays": True,
         },
     }

@@ -81,3 +81,22 @@ def predict(frame: np.ndarray, cfg: dict) -> Label:
         fault_threshold_px=cfg.get("fault_threshold_px", 2),
         uncertain_margin_px=cfg.get("uncertain_margin_px", 8),
     )
+
+
+def predict_with_details(frame: np.ndarray, cfg: dict) -> dict:
+    """Return label plus intermediate detector outputs for diagnostics."""
+    line_y = detect_line_y(frame, method=cfg.get("line_detection", "hough"))
+    foot_bottom = detect_foot_bottom(frame)
+    label = classify(
+        line_y,
+        foot_bottom,
+        fault_threshold_px=cfg.get("fault_threshold_px", 2),
+        uncertain_margin_px=cfg.get("uncertain_margin_px", 8),
+    )
+    gap = (line_y - foot_bottom) if (line_y is not None and foot_bottom is not None) else None
+    return {
+        "label": label,
+        "detected_line_y": line_y,
+        "detected_foot_bottom": foot_bottom,
+        "detected_gap_px": gap,
+    }

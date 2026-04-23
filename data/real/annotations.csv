@@ -1,0 +1,4 @@
+frame_path,true_label,notes
+data/real/frames/clip01_frame042.jpg,legal,clear view foot well behind line
+data/real/frames/clip01_frame087.jpg,fault,foot visibly over line
+data/real/frames/clip02_frame015.jpg,uncertain,player shadow partially occludes line

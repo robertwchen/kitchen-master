@@ -10,12 +10,16 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.baseline_detector import predict
 from src.config import get_default_config, load_config
 from src.evaluate import (
+    compute_failure_analysis,
     compute_metrics,
     plot_confusion_matrix,
+    plot_qualitative_overlays,
+    save_confusion_matrix_csv,
+    save_failure_analysis_csv,
     save_metrics_csv,
     save_predictions_csv,
 )
-from src.sim_generator import generate_dataset
+from src.sim_generator import generate_dataset, save_metadata_csv
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s — %(message)s")
 logger = logging.getLogger(__name__)
@@ -27,13 +31,13 @@ def main(cfg: dict) -> None:
     results_dir.mkdir(parents=True, exist_ok=True)
 
     samples = generate_dataset(cfg["sim"])
+    metas = [meta for _, meta in samples]
 
-    y_true, y_pred = [], []
-    for frame, label in samples:
-        y_true.append(label)
-        y_pred.append(predict(frame, cfg["detector"]))
+    y_true = [meta.ground_truth_label for meta in metas]
+    y_pred = [predict(frame, cfg["detector"]) for frame, _ in samples]
 
     metrics = compute_metrics(y_true, y_pred)
+    failure_rows = compute_failure_analysis(metas, y_pred)
 
     logger.info(f"n={metrics['n']}")
     logger.info(f"uncertain_rate={metrics['uncertain_rate']:.1%}")
@@ -44,10 +48,16 @@ def main(cfg: dict) -> None:
             f"{label}: precision={metrics[f'precision_{label}']:.3f}  recall={metrics[f'recall_{label}']:.3f}"
         )
 
+    save_metadata_csv(metas, results_dir / "metadata.csv")
     save_predictions_csv(y_true, y_pred, results_dir / "predictions.csv")
     save_metrics_csv(metrics, results_dir / "metrics.csv")
+    save_confusion_matrix_csv(metrics, results_dir / "confusion_matrix.csv")
+    save_failure_analysis_csv(failure_rows, results_dir / "failure_analysis.csv")
+
     if cfg["output"]["save_plots"]:
         plot_confusion_matrix(metrics, results_dir / "confusion_matrix.png")
+    if cfg["output"].get("save_overlays", True):
+        plot_qualitative_overlays(samples, y_pred, results_dir, n_per_group=3)
 
     logger.info(f"Done. Results in {results_dir}/")
 
