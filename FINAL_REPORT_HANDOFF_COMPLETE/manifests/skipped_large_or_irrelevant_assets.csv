@@ -1,0 +1,34 @@
+path,bytes,reason
+src/__pycache__/foot_fault_pipeline.cpython-314.pyc,44897,file type not needed for report handoff
+src/__pycache__/config.cpython-314.pyc,1670,file type not needed for report handoff
+src/__pycache__/sim_generator.cpython-314.pyc,8896,file type not needed for report handoff
+src/__pycache__/evaluate.cpython-314.pyc,15864,file type not needed for report handoff
+src/__pycache__/viz.cpython-314.pyc,12589,file type not needed for report handoff
+src/__pycache__/ball_detector.cpython-314.pyc,12591,file type not needed for report handoff
+src/__pycache__/court_registration.cpython-314.pyc,21322,file type not needed for report handoff
+src/__pycache__/stabilizer.cpython-314.pyc,16354,file type not needed for report handoff
+src/__pycache__/volley_classifier.cpython-314.pyc,27764,file type not needed for report handoff
+src/__pycache__/court_model.cpython-314.pyc,9788,file type not needed for report handoff
+src/__pycache__/foot_localizer.cpython-314.pyc,70274,file type not needed for report handoff
+src/__pycache__/ball_tracker.cpython-314.pyc,31465,file type not needed for report handoff
+src/__pycache__/__init__.cpython-314.pyc,173,file type not needed for report handoff
+src/__pycache__/baseline_detector.cpython-314.pyc,5576,file type not needed for report handoff
+experiments/__pycache__/run_demo_pipeline.cpython-314.pyc,72043,file type not needed for report handoff
+experiments/__pycache__/run_court_registration_v3.cpython-314.pyc,62001,file type not needed for report handoff
+scripts/__pycache__/annotate_reprojection_anchors.cpython-314.pyc,13934,file type not needed for report handoff
+tests/__pycache__/test_detector.cpython-314-pytest-9.0.3.pyc,7149,file type not needed for report handoff
+tests/__pycache__/__init__.cpython-314.pyc,175,file type not needed for report handoff
+tests/__pycache__/test_evaluate.cpython-314-pytest-9.0.3.pyc,18202,file type not needed for report handoff
+tests/__pycache__/test_sim_generator.cpython-314-pytest-9.0.3.pyc,24317,file type not needed for report handoff
+results/.DS_Store,6148,file type not needed for report handoff
+results/presentation_demo/.DS_Store,8196,file type not needed for report handoff
+results/real_baseline/.DS_Store,6148,file type not needed for report handoff
+results/real_baseline/court_reg_v1/.DS_Store,10244,file type not needed for report handoff
+results/real_baseline/court_reg_v3/.DS_Store,6148,file type not needed for report handoff
+results/presentation_demo/demo_v1_active_side/.DS_Store,6148,file type not needed for report handoff
+results/presentation_demo/demo_v1_active_side/review/.DS_Store,8196,file type not needed for report handoff
+IMG_8144.MOV,10812068,"large raw video/model asset retained in repo root, not duplicated into condensed handoff"
+yolov8x.pt,136890692,"large raw video/model asset retained in repo root, not duplicated into condensed handoff"
+yolov8n.pt,6549796,"large raw video/model asset retained in repo root, not duplicated into condensed handoff"
+IMG_8166.MOV,1040673191,"large raw video/model asset retained in repo root, not duplicated into condensed handoff"
+models/yolov8n-pose.onnx,13484153,"large model asset retained in repo, not duplicated"

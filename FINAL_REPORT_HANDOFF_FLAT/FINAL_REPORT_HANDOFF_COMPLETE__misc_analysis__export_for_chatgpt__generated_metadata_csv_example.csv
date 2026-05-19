@@ -1,0 +1,16 @@
+true,pred
+legal,legal
+fault,fault
+legal,legal
+uncertain,fault
+legal,legal
+uncertain,uncertain
+fault,fault
+uncertain,uncertain
+legal,legal
+fault,fault
+uncertain,uncertain
+uncertain,fault
+uncertain,fault
+uncertain,fault
+uncertain,uncertain

@@ -1,0 +1,23 @@
+run_name: court_reg_v1
+
+video:
+  path: data/real/videos/pickle_vid_1.MOV
+
+annotations:
+  path: data/real/annotations/annotations.json
+
+registration:
+  refine: true          # shift lines to maximise edge response
+  refine_n_frames: 5    # frames used during refinement search
+  refine_search_px: 10  # search ±N pixels perpendicular to each line
+  stability_n_samples: 20
+
+output:
+  results_dir: results/real_baseline/
+  save_line_params_csv: true    # one row per video frame
+  save_overlay_video: true
+  overlay_video_fps: 10.0
+  overlay_video_scale: 0.5      # 960x540
+  overlay_frame_step: 6         # use every 6th source frame (~10fps at 60fps source)
+  mark_legal_zone: true
+  debug_frame_indices: [0, 60, 300, 600, 1200, 2400]  # save as full-res PNGs

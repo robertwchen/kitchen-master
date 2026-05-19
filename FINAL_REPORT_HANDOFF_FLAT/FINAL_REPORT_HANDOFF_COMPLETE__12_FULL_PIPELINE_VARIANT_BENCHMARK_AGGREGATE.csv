@@ -1,0 +1,4 @@
+variant,n_reps,frames_processed_each,mean_total_s,median_total_s,mean_total_effective_fps,mean_times_slower_than_source,mean_ball_tracking_fps,mean_detection_rate_pct,label_counts_last_run,review_required_last_run
+blob_classical,3,2055,14.9685,14.8747,137.347,0.44,155.157,35.67,"{""foot_fault_volley"": 1, ""uncertain"": 2}",2
+yolo1280_notiled_cpu,1,2055,247.1482,247.1482,8.315,7.21,8.433,36.98,"{""legal_volley"": 2, ""uncertain"": 1}",1
+yolo640_notiled_cpu,3,2055,71.1139,69.4406,28.951,2.08,30.425,14.16,"{""uncertain"": 3}",3

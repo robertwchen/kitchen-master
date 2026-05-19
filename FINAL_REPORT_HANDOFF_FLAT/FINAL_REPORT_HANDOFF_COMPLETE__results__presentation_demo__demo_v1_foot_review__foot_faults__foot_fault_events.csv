@@ -1,0 +1,4 @@
+frame_index,timestamp_s,side,label,signed_dist_px,foot_x,foot_y,foot_confidence,foot_mode,review_required,frame_path,roi_frame_path
+929,15.4981,left,foot_fault_volley,-440.04,617.18,1079.0,0.464,event_hybrid,False,results/presentation_demo/demo_v1_foot_review/foot_faults/event_frames/event_00929.png,results/presentation_demo/demo_v1_foot_review/foot_faults/roi_frames/event_00929_roi.png
+1537,25.641,left,foot_fault_volley,-431.01,618.2,1079.0,0.473,event_hybrid,False,results/presentation_demo/demo_v1_foot_review/foot_faults/event_frames/event_01537.png,results/presentation_demo/demo_v1_foot_review/foot_faults/roi_frames/event_01537_roi.png
+1948,32.4975,left,uncertain,-2.71,307.73,762.39,0.547,event_hybrid,True,results/presentation_demo/demo_v1_foot_review/foot_faults/event_frames/event_01948.png,results/presentation_demo/demo_v1_foot_review/foot_faults/roi_frames/event_01948_roi.png

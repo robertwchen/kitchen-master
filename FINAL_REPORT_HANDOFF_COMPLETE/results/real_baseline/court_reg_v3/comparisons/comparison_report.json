@@ -1,0 +1,89 @@
+{
+  "post_translation_vs_affine_fixed": {
+    "left": {
+      "label": "post_translation | fixed | refine-off",
+      "settings": {
+        "transform_type": "post_translation",
+        "rolling_reference": false,
+        "refinement_enabled": false
+      },
+      "registration": {
+        "n_ok": 2055,
+        "n_fallback": 0
+      },
+      "reprojection": null
+    },
+    "right": {
+      "label": "affine | fixed | refine-off",
+      "settings": {
+        "transform_type": "affine",
+        "rolling_reference": false,
+        "refinement_enabled": false
+      },
+      "registration": {
+        "n_ok": 2036,
+        "n_fallback": 19
+      },
+      "reprojection": null
+    },
+    "output_dir": "results/real_baseline/court_reg_v3/comparisons/post_translation_vs_affine_fixed"
+  },
+  "post_translation_vs_static": {
+    "left": {
+      "label": "post_translation | fixed | refine-off",
+      "settings": {
+        "transform_type": "post_translation",
+        "rolling_reference": false,
+        "refinement_enabled": false
+      },
+      "registration": {
+        "n_ok": 2055,
+        "n_fallback": 0
+      },
+      "reprojection": null
+    },
+    "right": {
+      "label": "static | fixed | refine-off",
+      "settings": {
+        "transform_type": "static",
+        "rolling_reference": false,
+        "refinement_enabled": false
+      },
+      "registration": {
+        "n_ok": 2055,
+        "n_fallback": 0
+      },
+      "reprojection": null
+    },
+    "output_dir": "results/real_baseline/court_reg_v3/comparisons/post_translation_vs_static"
+  },
+  "refinement_on_vs_off": {
+    "left": {
+      "label": "affine | fixed | refine-on",
+      "settings": {
+        "transform_type": "affine",
+        "rolling_reference": false,
+        "refinement_enabled": true
+      },
+      "registration": {
+        "n_ok": 2036,
+        "n_fallback": 19
+      },
+      "reprojection": null
+    },
+    "right": {
+      "label": "affine | fixed | refine-off",
+      "settings": {
+        "transform_type": "affine",
+        "rolling_reference": false,
+        "refinement_enabled": false
+      },
+      "registration": {
+        "n_ok": 2036,
+        "n_fallback": 19
+      },
+      "reprojection": null
+    },
+    "output_dir": "results/real_baseline/court_reg_v3/comparisons/refinement_on_vs_off"
+  }
+}

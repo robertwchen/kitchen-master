@@ -1,0 +1,47 @@
+video_path: /Users/robert/dev/git/school/kitchen-master/kitchen-master/data/real/videos/pickle_vid_1_trimmed_from_8s.mp4
+output_dir: /Users/robert/dev/git/school/kitchen-master/kitchen-master/tmp/final_report_latency_benchmarks/results/ball_tracking_yolo_cpu_300_frames
+clip_start_frame: 0
+clip_end_frame: 300
+ball_tracking:
+  enabled: true
+  tracking_backend: ultralytics
+  detection_mode: diff_and_hsv
+  ultralytics:
+    model_path: yolov8n.pt
+    confidence: 0.05
+    iou: 0.45
+    imgsz: 1280
+    device: cpu
+    max_det: 8
+    use_tiled_inference: true
+    tile_size: 960
+    tile_overlap: 0.25
+    merge_radius_px: 24.0
+    class_ids:
+    - 32
+    class_names:
+    - sports ball
+  hsv_lower:
+  - 18
+  - 60
+  - 160
+  hsv_upper:
+  - 55
+  - 255
+  - 255
+  diff_threshold: 18
+  diff_dilate_k: 8
+  min_area: 60.0
+  max_area: 800.0
+  min_circularity: 0.45
+  min_v_at_centroid: 170
+  top_exclude_frac: 0.12
+  morph_open_k: 1
+  morph_close_k: 3
+  max_jump_px: 260.0
+  smooth_sigma: 1.0
+  trail_length: 12
+  write_overlay: false
+  overlay_fps: 10.0
+  overlay_scale: 0.5
+  debug_every_n: 999999

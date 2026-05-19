@@ -1,0 +1,2 @@
+n,precision_legal,recall_legal,precision_fault,recall_fault,precision_uncertain,recall_uncertain,uncertain_rate,false_fault_rate,missed_fault_rate
+200,1.0,0.94,0.5051,1.0,0.9444,0.51,0.27,0.0,0.0

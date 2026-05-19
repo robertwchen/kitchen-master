@@ -1,0 +1,23 @@
+kitchen-master/
+├── .gitignore
+├── README.md
+├── requirements.txt
+├── docs/
+│   ├── plan.md
+│   └── problem.md
+├── experiments/
+│   ├── configs/
+│   │   └── sim_v1.yaml
+│   ├── run_eval.py
+│   └── run_sim.py
+├── src/
+│   ├── __init__.py
+│   ├── baseline_detector.py
+│   ├── config.py
+│   ├── evaluate.py
+│   └── sim_generator.py
+└── tests/
+    ├── __init__.py
+    ├── test_detector.py
+    ├── test_evaluate.py
+    └── test_sim_generator.py

@@ -1,0 +1,19 @@
+{
+  "_notes": "Pixel coordinates (x, y) from top-left of the FULL-RESOLUTION frame. Use the saved reference_frame PNG to read coordinates. legal_side_reference_point is any pixel you know is on the legal (non-fault) side of the near kitchen line — typically a point on the baseline behind the line. You can annotate 1 to 3 frames and the registration module will average them.",
+  "video": "pickle_vid_1.MOV",
+  "annotated_frames": [
+    {
+      "frame_index": 60,
+      "_instruction": "Replace the placeholder coordinates below with real pixel values from the reference frame image.",
+      "near_kitchen_line": {
+        "p1": [REPLACE_X1, REPLACE_Y1],
+        "p2": [REPLACE_X2, REPLACE_Y2]
+      },
+      "far_kitchen_line": {
+        "p1": [REPLACE_X3, REPLACE_Y3],
+        "p2": [REPLACE_X4, REPLACE_Y4]
+      },
+      "legal_side_reference_point": [REPLACE_X5, REPLACE_Y5]
+    }
+  ]
+}

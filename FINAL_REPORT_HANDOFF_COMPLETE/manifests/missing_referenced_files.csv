@@ -1,0 +1,7 @@
+path,reason
+data/real/annotations/manual_foot_points.json,optional manual foot override file referenced by config; not present
+data/real/annotations/manual_line_override.json,optional manual NVZ override file referenced by config; not present
+data/real/annotations/reprojection_labels_v1.json,optional reprojection validation labels referenced by court_reg_v3 config; not present
+models/pickleball/best.pt,optional trained pickleball detector checkpoint referenced in comments; not present
+results/presentation_demo/demo_v1/review/review_approved.json,apply_overrides input must be manually created from review_pending.json; not present
+results/real_v1/,README references this possible real-baseline output; not present in current snapshot

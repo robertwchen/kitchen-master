@@ -1,0 +1,70 @@
+{
+  "run_name": "court_reg_v1",
+  "video": "pickle_vid_1.MOV",
+  "resolution": "1920x1080",
+  "fps": 59.943,
+  "total_frames": 2535,
+  "duration_s": 42.29,
+  "annotation_source": "data/real/annotations/annotations.json",
+  "lines": {
+    "near": {
+      "p1": [
+        0.0,
+        469.0
+      ],
+      "p2": [
+        950.0,
+        469.0
+      ],
+      "a": 0.0,
+      "b": -1.0,
+      "c": 469.0
+    },
+    "far": {
+      "p1": [
+        960.0,
+        469.0
+      ],
+      "p2": [
+        1919.0,
+        469.0
+      ],
+      "a": 0.0,
+      "b": -1.0,
+      "c": 469.0
+    }
+  },
+  "refinement": {
+    "near": {
+      "refinement_offset_px": 0,
+      "peak_edge_score": 47.65
+    },
+    "far": {
+      "refinement_offset_px": 0,
+      "peak_edge_score": 47.65
+    }
+  },
+  "stability": {
+    "near": {
+      "mean_edge_strength": 51.58,
+      "std_edge_strength": 29.54,
+      "cv": 0.5728,
+      "n_frames_sampled": 20,
+      "assessment": "check"
+    },
+    "far": {
+      "mean_edge_strength": 51.58,
+      "std_edge_strength": 29.54,
+      "cv": 0.5728,
+      "n_frames_sampled": 20,
+      "assessment": "check"
+    }
+  },
+  "overall_assessment": "check",
+  "legal_side_sign": -1,
+  "outputs": {
+    "line_params_csv": "results/real_baseline/court_reg_v1/line_params.csv",
+    "debug_frames": "results/real_baseline/court_reg_v1/debug_frames",
+    "overlay_video": "results/real_baseline/court_reg_v1/overlay.mp4"
+  }
+}

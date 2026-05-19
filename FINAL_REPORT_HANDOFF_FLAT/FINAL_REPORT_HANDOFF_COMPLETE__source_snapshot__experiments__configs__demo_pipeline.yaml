@@ -1,0 +1,219 @@
+# ── KitchenMaster Demo Pipeline Config ────────────────────────────────────────
+# Run with:
+#   python experiments/run_demo_pipeline.py --config experiments/configs/demo_pipeline.yaml
+
+run_name: demo_v1
+
+# ── Input ─────────────────────────────────────────────────────────────────────
+video:
+  path: data/real/videos/pickle_vid_1_trimmed_from_8s.mp4
+  # Optional: process only frames [start, end). Comment out to process entire clip.
+  # clip_start_frame: 0
+  # clip_end_frame: 500
+
+# ── Stage 1: Court registration ───────────────────────────────────────────────
+# Point to existing registration outputs from run_court_registration_v3.py.
+# The pipeline uses these directly — no re-registration is done here.
+registration:
+  # Primary source: per-frame CSV from court_reg_v3
+  csv_path: results/real_baseline/court_reg_v3/per_frame_transforms.csv
+  # Annotations used as fallback if CSV is unavailable
+  annotations_path: data/real/annotations/annotations_v3.json
+  # Optional: manual NVZ line override (overrides registration for ALL frames).
+  # Create data/real/annotations/manual_line_override.json with the format:
+  #   { "kitchen_near_left": [x,y], "kitchen_near_right": [x,y],
+  #     "kitchen_far_left": [x,y],  "kitchen_far_right": [x,y] }
+  # manual_override_path: data/real/annotations/manual_line_override.json
+
+# ── Stage 2: Ball tracking ────────────────────────────────────────────────────
+ball_tracking:
+  enabled: true
+  # Backend:
+  #   blob         = existing classical CV tracker (current safe default)
+  #   ultralytics  = detector-first pipeline using a learned small-ball model
+  tracking_backend: ultralytics
+  # Detection mode:
+  #   diff_and_hsv  = best calibrated mode for the new night-footage videos
+  #   shape_only    = debug fallback when colour is unreliable, but more false positives
+  #   hsv_only      = colour-only debug fallback
+  detection_mode: diff_and_hsv
+  # Optional learned detector config. Keep disabled until you have a trained
+  # pickleball model checkpoint such as models/pickleball/best.pt.
+  ultralytics:
+    model_path: yolov8n.pt
+    confidence: 0.05
+    iou: 0.45
+    imgsz: 1280
+    device: cpu
+    max_det: 8
+    use_tiled_inference: true
+    tile_size: 960
+    tile_overlap: 0.25
+    merge_radius_px: 24.0
+    class_ids: [32]
+    class_names: ["sports ball"]
+  # HSV range tuned on IMG_8144 / IMG_8166. The ball stayed more saturated than
+  # most lights / court highlights, so a stricter S gate helped a lot.
+  hsv_lower: [18, 60, 160]
+  hsv_upper: [55, 255, 255]
+  # Motion gate for diff-based modes
+  diff_threshold: 18
+  diff_dilate_k: 8
+  # Blob filter
+  min_area: 60.0           # px² minimum contour area
+  max_area: 800.0          # reject larger player / court blobs
+  min_circularity: 0.45    # allow motion blur but still prefer ball-like blobs
+  min_v_at_centroid: 170   # reject darker moving clutter
+  top_exclude_frac: 0.12   # trims bright overhead lights while keeping ball flight
+  # Morphological cleanup
+  morph_open_k: 1          # keep small ball blobs from being opened away
+  morph_close_k: 3         # lightly reconnect fragmented ball masks
+  # Temporal linking
+  max_jump_px: 260.0       # allows faster cross-court flight without immediate dropouts
+  # Trail smoothing
+  smooth_sigma: 1.0        # Gaussian sigma over detected frames (0 = no smoothing)
+  trail_length: 12         # number of past positions shown in overlay trail
+  # Output
+  write_overlay: true
+  overlay_fps: 10.0
+  overlay_scale: 0.5
+  debug_every_n: 60        # save a debug PNG every N frames
+
+# ── Stage 3: Bounce / volley classification ───────────────────────────────────
+volley_classification:
+  enabled: true
+  # Trajectory smoothing (over detected frames only)
+  smooth_sigma: 2.0
+  # Bounce candidate gates
+  min_drop_px: 8.0         # minimum downward motion before candidate
+  min_rise_px: 8.0         # minimum upward motion after candidate
+  court_band_px: 120.0     # bounce must stay within the playable court depth band
+  lookback_frames: 5       # window to check for drop
+  lookahead_frames: 5      # window to check for rise
+  uncertain_margin_px: 20.0
+  max_frame_gap_in_window: 5    # tolerate some dropouts but reject badly fragmented windows
+  min_local_detection_ratio: 0.25
+  min_window_confidence: 0.28
+  min_x_travel_px: 18.0         # if x motion is meaningful, it should stay broadly consistent
+  x_step_significance_px: 4.5
+  max_x_direction_flip_ratio: 0.25
+  max_raw_to_smooth_dist_px: 45.0
+  suppress_stationary_ground_ball: true
+  stationary_post_x_px: 30.0
+  stationary_post_gap_frames: 4
+  export_uncertain_candidates: false
+  # Hit event classification
+  hit_lookback_frames: 30  # look back this many frames before a hit for a bounce
+  min_bounce_confidence: 0.3
+  # Montage output
+  montage_context_frames: 5
+  montage_scale: 0.4
+  # Optional: supply hit event frames manually for volley vs. post_bounce classification.
+  # List of frame indices where a hit event is known to occur.
+  # If empty, only bounce candidates are exported (no volley/post_bounce labels).
+  # hit_frames: [120, 240, 360]
+  hit_frames: []
+
+# ── Stage 4: Foot localization ────────────────────────────────────────────────
+foot_localizer:
+  # Mode: background_subtraction | roi_threshold | manual_point | event_hybrid
+  mode: event_hybrid
+  # --- shared / event_hybrid parameters ---
+  temporal_window_radius: 1
+  temporal_sigma_frames: 1.0
+  min_temporal_support: 2
+  low_confidence_threshold: 0.45
+  min_blob_area: 150.0
+  expected_foot_area: 2000.0
+  boundary_pad_x: 180
+  boundary_pad_y: 150
+  near_bottom_bonus_px: 110
+  boundary_distance_sigma_px: 45.0
+  min_solidity: 0.08
+  # --- pretrained person detector / lower-body ROI ---
+  pose_model_path: models/yolov8n-pose.onnx
+  pose_input_size: 640
+  pose_confidence_threshold: 0.35
+  pose_nms_threshold: 0.45
+  pose_keypoint_threshold: 0.35
+  person_detector_scale_down: 0.6
+  person_detector_scale: 1.05
+  person_detector_min_score: 0.2
+  person_detector_nms_iou: 0.35
+  expected_person_area: 90000.0
+  person_boundary_sigma_px: 140.0
+  lower_body_start_frac: 0.52
+  boundary_leg_focus_frac: 0.58
+  pose_leg_roi_pad_x: 34
+  pose_leg_roi_pad_top: 26
+  pose_leg_roi_pad_bottom: 52
+  pose_contact_half_width: 42
+  pose_contact_above_px: 26
+  pose_contact_below_px: 58
+  # --- background subtraction cue ---
+  bg_history: 32
+  bg_var_threshold: 30.0
+  morph_open_k: 3
+  morph_close_k: 7
+  combined_open_k: 3
+  combined_close_k: 9
+  contact_canny_low: 40
+  contact_canny_high: 110
+  # ROI to restrict foot search (full frame if omitted)
+  # event_hybrid intersects this coarse clip-level ROI with a tighter
+  # boundary-centered ROI built from the selected NVZ line.
+  roi:
+    x0: 0
+    y0: 520
+    x1: 1920
+    y1: 1080
+  # --- threshold cue (used by roi_threshold and event_hybrid) ---
+  threshold_mode: value    # 'value' (grayscale) or 'hsv'
+  gray_threshold: 92       # dark shoe / lower-body cue
+  # hsv_lower: [0, 0, 0]
+  # hsv_upper: [180, 255, 80]
+  # --- manual_point parameters (used when mode: manual_point) ---
+  # override_file: data/real/annotations/manual_foot_points.json
+
+# ── Stage 5: Foot-fault decision ──────────────────────────────────────────────
+foot_fault:
+  enabled: true
+  # NVZ side to check ('left', 'right', or 'near')
+  # 'left' checks left_boundary_line (near-left → far-left corner)
+  # 'right' checks right_boundary_line (near-right → far-right corner)
+  # 'near' checks the near kitchen horizontal line
+  nvz_side: left
+  # Active-side inference: temporal vote over nearby tracked ball positions.
+  active_side_window_frames: 12
+  active_side_min_confidence: 0.7
+  active_side_min_support_n: 2
+  # Classification thresholds (in pixels)
+  fault_threshold_px: 5.0     # foot must be this far INSIDE kitchen to call fault
+  uncertain_margin_px: 15.0   # ±margin around the line = uncertain zone
+  # Optional: override which frames are treated as volley events.
+  # If empty, uses volley events from Stage 3.
+  # manual_volley_frames: [120, 360]
+
+# ── Pipeline mode ─────────────────────────────────────────────────────────────
+# auto_review   : run all stages, export review artifacts, write review_pending.json,
+#                 then STOP and wait for user validation before producing final outputs.
+# apply_overrides: load review_approved.json (user-edited copy of review_pending.json)
+#                  and produce final annotated outputs + summary video.
+pipeline:
+  mode: auto_review    # auto_review | apply_overrides
+  # Path to write the pending review file (auto_review mode)
+  review_pending_path: results/presentation_demo/demo_v1/review/review_pending.json
+  # Path to read the approved review file (apply_overrides mode).
+  # Copy review_pending.json → review_approved.json, then edit it.
+  review_approved_path: results/presentation_demo/demo_v1/review/review_approved.json
+
+# ── Output ────────────────────────────────────────────────────────────────────
+output:
+  results_dir: results/presentation_demo/
+  # Visualization
+  show_court_overlay: true
+  show_ball_trail: true
+  # Summary video (written only in apply_overrides mode after validation)
+  write_summary_video: true
+  summary_video_fps: 10.0
+  summary_video_scale: 0.5

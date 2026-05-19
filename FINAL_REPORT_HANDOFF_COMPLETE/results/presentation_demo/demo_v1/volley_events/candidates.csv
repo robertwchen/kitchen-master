@@ -1,0 +1,1 @@
+frame_index,timestamp_s,drop_px,rise_px,vy_before,vy_after,x_consistency_score,local_detection_ratio,max_frame_gap,near_court_surface,confidence,label,ball_x,ball_y,raw_to_smooth_dist_px,mean_window_confidence,dx_before,dx_after

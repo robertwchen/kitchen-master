@@ -1,0 +1,26 @@
+{
+  "_notes": "V2 annotations for ORB-homography registration. Reference frame is frame 0 (t=0s). Kitchen line coordinates at y~469 derived from Hough + blue-channel analysis on multiple frames. Anchor points provide landmarks for sanity-checking warped geometry. net_base_center estimated from darkness-column analysis (vertical net post at x~960, base at y~956). Use scripts/annotate_reference.py to refine endpoints if overlay drifts.",
+  "video": "pickle_vid_1.MOV",
+  "reference_frame_index": 0,
+  "annotated_frames": [
+    {
+      "frame_index": 0,
+      "near_kitchen_line": {
+        "p1": [0, 469],
+        "p2": [950, 469]
+      },
+      "far_kitchen_line": {
+        "p1": [960, 469],
+        "p2": [1919, 469]
+      },
+      "legal_side_reference_point": [300, 750],
+      "anchor_points": {
+        "net_base_center": [960, 956],
+        "near_line_left": [0, 469],
+        "near_line_right": [950, 469],
+        "far_line_left": [960, 469],
+        "far_line_right": [1919, 469]
+      }
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+scenario_type,occlusion_flag,blur_level,distance_bucket_px,n_samples,n_correct,accuracy,predicted_legal,predicted_fault,predicted_uncertain
+borderline,False,0,+3 to +10,13,13,1.0,0,0,13
+borderline,False,0,-10 to -3,9,0,0.0,0,9,0
+borderline,False,0,-3 to +3,28,22,0.7857,0,6,22
+clear_fault,False,0,-10 to -3,13,13,1.0,0,13,0
+clear_fault,False,0,< -10,37,37,1.0,0,37,0
+clear_legal,False,0,+10 to +20,22,22,1.0,22,0,0
+clear_legal,False,0,+3 to +10,3,0,0.0,0,0,3
+clear_legal,False,0,> +20,25,25,1.0,25,0,0
+occluded,True,1,+3 to +10,10,10,1.0,0,0,10
+occluded,True,1,-10 to -3,17,0,0.0,0,17,0
+occluded,True,1,-3 to +3,10,6,0.6,0,4,6
+occluded,True,1,< -10,13,0,0.0,0,13,0

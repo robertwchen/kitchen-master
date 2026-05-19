@@ -1,0 +1,11 @@
+{
+  "n_events": 3,
+  "label_counts": {
+    "foot_fault_volley": 2,
+    "uncertain": 1
+  },
+  "fault_threshold_px": 5.0,
+  "uncertain_margin_px": 15.0,
+  "nvz_side": "left",
+  "foot_mode": "event_hybrid"
+}
