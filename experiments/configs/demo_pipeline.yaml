@@ -6,7 +6,7 @@ run_name: demo_v1
 
 # ── Input ─────────────────────────────────────────────────────────────────────
 video:
-  path: data/real/videos/pickle_vid_1_trimmed_from_8s.mp4
+  path: .local/data/real/videos/pickle_vid_1_trimmed_from_8s.mp4
   # Optional: process only frames [start, end). Comment out to process entire clip.
   # clip_start_frame: 0
   # clip_end_frame: 500
@@ -18,12 +18,12 @@ registration:
   # Primary source: per-frame CSV from court_reg_v3
   csv_path: results/real_baseline/court_reg_v3/per_frame_transforms.csv
   # Annotations used as fallback if CSV is unavailable
-  annotations_path: data/real/annotations/annotations_v3.json
+  annotations_path: docs/annotations/real/anchors/annotations_v3.json
   # Optional: manual NVZ line override (overrides registration for ALL frames).
-  # Create data/real/annotations/manual_line_override.json with the format:
+  # Create docs/annotations/real/anchors/manual_line_override.json with the format:
   #   { "kitchen_near_left": [x,y], "kitchen_near_right": [x,y],
   #     "kitchen_far_left": [x,y],  "kitchen_far_right": [x,y] }
-  # manual_override_path: data/real/annotations/manual_line_override.json
+  # manual_override_path: docs/annotations/real/anchors/manual_line_override.json
 
 # ── Stage 2: Ball tracking ────────────────────────────────────────────────────
 ball_tracking:
@@ -38,9 +38,9 @@ ball_tracking:
   #   hsv_only      = colour-only debug fallback
   detection_mode: diff_and_hsv
   # Optional learned detector config. Keep disabled until you have a trained
-  # pickleball model checkpoint such as models/pickleball/best.pt.
+  # pickleball model checkpoint such as .local/models/pickleball/best.pt.
   ultralytics:
-    model_path: yolov8n.pt
+    model_path: .local/models/yolov8n.pt
     confidence: 0.05
     iou: 0.45
     imgsz: 1280
@@ -131,7 +131,7 @@ foot_localizer:
   boundary_distance_sigma_px: 45.0
   min_solidity: 0.08
   # --- pretrained person detector / lower-body ROI ---
-  pose_model_path: models/yolov8n-pose.onnx
+  pose_model_path: .local/models/yolov8n-pose.onnx
   pose_input_size: 640
   pose_confidence_threshold: 0.35
   pose_nms_threshold: 0.45
@@ -173,7 +173,7 @@ foot_localizer:
   # hsv_lower: [0, 0, 0]
   # hsv_upper: [180, 255, 80]
   # --- manual_point parameters (used when mode: manual_point) ---
-  # override_file: data/real/annotations/manual_foot_points.json
+  # override_file: docs/annotations/real/anchors/manual_foot_points.json
 
 # ── Stage 5: Foot-fault decision ──────────────────────────────────────────────
 foot_fault:

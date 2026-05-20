@@ -77,7 +77,7 @@ def _ensure_hog_person_detector() -> cv2.HOGDescriptor:
 def _ensure_pose_net(cfg: dict) -> cv2.dnn.Net:
     global _pose_net
     if _pose_net is None:
-        model_path = Path(str(cfg.get("pose_model_path", "models/yolov8n-pose.onnx")))
+        model_path = Path(str(cfg.get("pose_model_path", ".local/models/yolov8n-pose.onnx")))
         if not model_path.exists():
             raise FileNotFoundError(f"Pose model not found: {model_path}")
         _pose_net = cv2.dnn.readNetFromONNX(str(model_path))

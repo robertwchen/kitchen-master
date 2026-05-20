@@ -1,10 +1,10 @@
 run_name: court_reg_v2
 
 video:
-  path: data/real/videos/pickle_vid_1.MOV
+  path: .local/data/real/videos/pickle_vid_1.MOV
 
 annotations:
-  path: data/real/annotations/annotations_v2.json
+  path: docs/annotations/real/anchors/annotations_v2.json
 
 stabilizer:
   n_features: 3000

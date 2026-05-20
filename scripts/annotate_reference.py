@@ -14,9 +14,9 @@ Keys:
 
 Usage:
     python scripts/annotate_reference.py \\
-        --video data/real/videos/pickle_vid_1.MOV \\
+        --video .local/data/real/videos/pickle_vid_1.MOV \\
         --frame 60 \\
-        --out   data/real/annotations/annotations.json
+        --out   docs/annotations/real/anchors/annotations.json
 """
 
 import argparse
@@ -145,9 +145,9 @@ def run_annotation(video_path: Path, frame_idx: int, out_path: Path) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Click-to-annotate kitchen line reference")
-    parser.add_argument("--video", default="data/real/videos/pickle_vid_1.MOV")
+    parser.add_argument("--video", default=".local/data/real/videos/pickle_vid_1.MOV")
     parser.add_argument("--frame", type=int, default=60, help="Frame index to annotate")
-    parser.add_argument("--out", default="data/real/annotations/annotations.json")
+    parser.add_argument("--out", default="docs/annotations/real/anchors/annotations.json")
     args = parser.parse_args()
 
     run_annotation(Path(args.video), args.frame, Path(args.out))

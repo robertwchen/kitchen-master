@@ -3,13 +3,13 @@ Extract frames from a video at a configurable rate and save a manifest CSV.
 
 Usage:
     python scripts/extract_frames.py \\
-        --video data/real/videos/pickle_vid_1.MOV \\
-        --out   data/real/frames/ \\
+        --video .local/data/real/videos/pickle_vid_1.MOV \\
+        --out   .local/data/real/frames/ \\
         --fps   5
 
 Outputs:
-    data/real/frames/<stem>_frame<NNNNN>.jpg   — extracted frames
-    data/real/frames/manifest.csv              — frame_index, timestamp_s, filename
+    .local/data/real/frames/<stem>_frame<NNNNN>.jpg   — extracted frames
+    .local/data/real/frames/manifest.csv              — frame_index, timestamp_s, filename
 """
 
 import argparse
@@ -81,7 +81,7 @@ def extract_frames(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Extract frames from video")
     parser.add_argument("--video", required=True, help="Path to input video")
-    parser.add_argument("--out", default="data/real/frames/", help="Output directory")
+    parser.add_argument("--out", default=".local/data/real/frames/", help="Output directory")
     parser.add_argument("--fps", type=float, default=5.0, help="Target extraction FPS")
     parser.add_argument("--quality", type=int, default=90, help="JPEG quality 0–100")
     args = parser.parse_args()

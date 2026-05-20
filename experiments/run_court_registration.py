@@ -12,7 +12,7 @@ Usage:
     # or override annotation path:
     python experiments/run_court_registration.py \\
         --config experiments/configs/court_reg_v1.yaml \\
-        --annotations data/real/annotations/annotations.json
+        --annotations docs/annotations/real/anchors/annotations.json
 """
 
 import argparse
@@ -66,7 +66,7 @@ def main(cfg: dict) -> None:
         ref_path = _save_reference_frame(video_path, annotation_path.parent)
         logger.info("Run the annotation tool then re-run this script:")
         logger.info(f"  python scripts/annotate_reference.py --video {video_path} --out {annotation_path}")
-        logger.info(f"  Or manually edit a copy of data/real/annotations/annotations_template.json")
+        logger.info(f"  Or manually edit a copy of docs/annotations/real/anchors/annotations_template.json")
         logger.info(f"  Reference frame saved at: {ref_path}")
         sys.exit(0)
 

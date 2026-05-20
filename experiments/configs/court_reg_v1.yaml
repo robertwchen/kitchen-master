@@ -1,10 +1,10 @@
 run_name: court_reg_v1
 
 video:
-  path: data/real/videos/pickle_vid_1.MOV
+  path: .local/data/real/videos/pickle_vid_1.MOV
 
 annotations:
-  path: data/real/annotations/annotations.json
+  path: docs/annotations/real/anchors/annotations.json
 
 registration:
   refine: true          # shift lines to maximise edge response

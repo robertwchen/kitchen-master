@@ -56,7 +56,7 @@ python experiments/run_sim.py --config experiments/configs/sim_v1.yaml
 python experiments/run_eval.py --results results/sim_v1/
 ```
 
-Real-video runs need local raw clips under `data/real/videos/`. Those videos are ignored by git. The optional pose path expects `models/yolov8n-pose.onnx`, also ignored because model weights should not live in the repo.
+Real-video runs need local raw clips under `.local/data/real/videos/`. Those videos, extracted frames, local archives, and model weights are ignored by git so the public repo stays focused.
 
 For the YOLO-backed ball detector used by the demo config:
 
@@ -107,6 +107,7 @@ scripts/
 
 docs/
   assets/                   README images and charts
+  annotations/              small real-video anchor annotations
   results/                  small result summaries from the final report
 ```
 

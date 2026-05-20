@@ -35,9 +35,9 @@ Keys
 Usage
 -----
   python scripts/annotate_anchors.py \\
-      --video  data/real/videos/pickle_vid_1.MOV \\
+      --video  .local/data/real/videos/pickle_vid_1.MOV \\
       --frame  0 \\
-      --out    data/real/annotations/annotations_v3.json
+      --out    docs/annotations/real/anchors/annotations_v3.json
 """
 
 import argparse
@@ -226,6 +226,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--video", required=True)
     parser.add_argument("--frame", type=int, default=0)
-    parser.add_argument("--out", default="data/real/annotations/annotations_v3.json")
+    parser.add_argument("--out", default="docs/annotations/real/anchors/annotations_v3.json")
     args = parser.parse_args()
     main(Path(args.video), args.frame, Path(args.out))

@@ -2,9 +2,9 @@
 
 Expected annotations.csv format:
     frame_path,true_label,notes
-    data/real/frames/clip01_042.jpg,legal,clear view
-    data/real/frames/clip01_087.jpg,fault,foot over line
-    data/real/frames/clip02_015.jpg,uncertain,shadow occlusion
+    .local/data/real/frames/clip01_042.jpg,legal,clear view
+    .local/data/real/frames/clip01_087.jpg,fault,foot over line
+    .local/data/real/frames/clip02_015.jpg,uncertain,shadow occlusion
 """
 
 import argparse
@@ -42,7 +42,7 @@ def main(annotations_path: Path, results_dir: Path, detector_cfg: dict) -> None:
 
     if not annotations_path.exists():
         logger.error(f"Annotations file not found: {annotations_path}")
-        logger.error("Create data/real/annotations.csv following the template.")
+        logger.error("Create docs/annotations/real/annotations.csv following the template.")
         sys.exit(1)
 
     rows = load_annotations(annotations_path)
@@ -92,7 +92,7 @@ def main(annotations_path: Path, results_dir: Path, detector_cfg: dict) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="KitchenMaster real-data evaluation")
-    parser.add_argument("--annotations", default="data/real/annotations.csv",
+    parser.add_argument("--annotations", default="docs/annotations/real/annotations.csv",
                         help="Path to annotations CSV")
     parser.add_argument("--results", default="results/real_v1",
                         help="Output directory for results")

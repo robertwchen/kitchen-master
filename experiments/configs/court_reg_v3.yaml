@@ -1,10 +1,10 @@
 run_name: court_reg_v3
 
 video:
-  path: data/real/videos/pickle_vid_1_trimmed_from_8s.mp4
+  path: .local/data/real/videos/pickle_vid_1_trimmed_from_8s.mp4
 
 annotations:
-  path: data/real/annotations/annotations_v3.json
+  path: docs/annotations/real/anchors/annotations_v3.json
 
 stabilizer:
   n_features: 4000
@@ -26,7 +26,7 @@ stabilizer:
     line_band_px: 44           # focus on painted lines and net-adjacent structure
     court_padding_px: 12       # small buffer around the line bands
   translation_tracker:
-    annotations_path: data/real/annotations/annotations_v2.json
+    annotations_path: docs/annotations/real/anchors/annotations_v2.json
     anchor_name: net_base_center
     template_half_size_px: 24
     search_radius_px: 36
@@ -49,7 +49,7 @@ output:
 
 validation:
   n_sample_frames: 60          # frames for edge-strength + anchor drift report
-  reprojection_labels_path: data/real/annotations/reprojection_labels_v1.json
+  reprojection_labels_path: docs/annotations/real/anchors/reprojection_labels_v1.json
 
 comparison_exports:
   enabled: true

@@ -7,10 +7,10 @@ measure projected-vs-labeled pixel error.
 Usage
 -----
 python scripts/annotate_reprojection_anchors.py \
-    --video data/real/videos/pickle_vid_1_trimmed_from_8s.mp4 \
-    --reference-annotations data/real/annotations/annotations_v3.json \
+    --video .local/data/real/videos/pickle_vid_1_trimmed_from_8s.mp4 \
+    --reference-annotations docs/annotations/real/anchors/annotations_v3.json \
     --n-samples 12 \
-    --out data/real/annotations/reprojection_labels_v1.json
+    --out docs/annotations/real/anchors/reprojection_labels_v1.json
 """
 
 import argparse

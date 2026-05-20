@@ -6,6 +6,7 @@ venv/
 .DS_Store
 .cursor/
 .pytest_cache/
+.local/
 
 # Local-only archives and generated handoff material.
 _local_archive/
@@ -13,7 +14,6 @@ FINAL_REPORT_HANDOFF_COMPLETE/
 FINAL_REPORT_HANDOFF_FLAT/
 KITCHENMASTER_EVERYTHING_HANDOFF/
 final_report_bundle/
-TotalPrompts/
 misc/
 tmp/
 outputs/
@@ -23,14 +23,9 @@ Ultralytics/
 results/
 !docs/results/
 
-# Raw media and extracted frame dumps.
-data/real/raw/*
-data/real/temp/*
-data/real/frames/*
-!data/real/frames/.gitkeep
-data/real/videos/*
-!data/real/videos/.gitkeep
-data/sim/raw/*
+# Raw media, extracted frames, and model staging stay local-only.
+data/
+models/
 
 # Root-level media/model drops from ad hoc experiments.
 *.MOV
@@ -41,5 +36,3 @@ data/sim/raw/*
 # Model weights are documented but kept out of Git.
 *.pt
 *.onnx
-models/*
-!models/.gitkeep
