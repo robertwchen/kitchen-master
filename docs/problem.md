@@ -1,57 +1,28 @@
-# Project: KitchenMaster
+# Problem
 
-## Goal
+Pickleball NVZ, or kitchen, foot faults are hard to call from normal play. A legal volley depends on both the foot position and the timing of contact with the ball. From a single side-view camera, both signals are noisy.
 
-Build a first-pass portable side-view vision prototype for pickleball kitchen/NVZ foot-fault detection.
+KitchenMaster tests whether a fixed consumer camera can still produce useful review artifacts:
 
-## Core Detection Task
+- registered NVZ boundary lines,
+- candidate volley frames,
+- estimated foot contact points,
+- signed distance from the foot to the NVZ boundary,
+- and an explicit `uncertain` output when the evidence is weak.
 
-Given a fixed side-view camera near the kitchen line, determine whether a player's foot:
-1. stays legal behind the line,
-2. touches/crosses the line and commits a fault, or
-3. cannot be determined reliably and should be marked uncertain.
+The project is framed as offline review, not autonomous officiating. Clear events can be flagged. Borderline or low-confidence events should be sent to a person.
 
-## Research Questions
+## Labels
 
-- **RQ1**: Can a fixed side-view portable camera detect NVZ line contact in controlled conditions?
-- **RQ2**: How sensitive is detection to viewpoint, blur, occlusion, and line-foot distance?
-- **RQ3**: Can an uncertain output reduce wrong calls in ambiguous cases?
+| Label | Meaning |
+| --- | --- |
+| `legal_volley` | Foot is clearly outside the NVZ boundary at the volley frame. |
+| `foot_fault_volley` | Foot is clearly on or inside the NVZ boundary at the volley frame. |
+| `uncertain` | Foot, ball timing, or active side is not reliable enough for a call. |
 
-## Initial Scope
+## Main Risks
 
-- One camera only
-- One court region only (NVZ/kitchen line)
-- Side-view profile only
-- Controlled clips first
-- Synthetic data first, then small real dataset
-
-## Scenario Classes
-
-| Scenario | Description |
-|----------|-------------|
-| **Clear legal** | The foot remains completely behind the kitchen line during the volley event window. |
-| **Clear fault** | The foot clearly touches or crosses the kitchen line during the volley event window. |
-| **Borderline contact** | The foot comes within a tiny margin of the line or appears to barely touch it, making the decision sensitive to resolution, blur, or calibration. |
-| **Occluded / uncertain** | The foot-line relationship cannot be determined reliably because of occlusion, motion blur, bad lighting, or partial visibility. |
-
-## Output Labels
-
-- `legal`
-- `fault`
-- `uncertain`
-
-## Evaluation Metrics
-
-- Confusion matrix
-- Precision per class
-- Recall per class
-- Uncertain rate
-- False fault rate (legal called as fault)
-- Missed fault rate (fault called as legal)
-
-## Success Criteria for 3-Day Version
-
-- Synthetic dataset generated successfully and saved
-- Baseline detector runs end-to-end on synthetic data
-- Small real dataset collected and labeled
-- Preliminary metrics and failure cases documented honestly
+- The ball is small and easy to lose in night footage.
+- Foot localization can lock onto shadows, paddle motion, or the wrong lower-body blob.
+- Active-side inference can select the wrong player side.
+- Pixel thresholds depend on camera placement and resolution.

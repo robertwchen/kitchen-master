@@ -90,8 +90,10 @@ class CourtGeometryModel:
             self.left_boundary_line: Optional[LineModel] = LineModel(
                 tuple(self._kn_l), tuple(self._kf_l)
             )
+            # Orient both side boundaries so signed_distance > 0 means the
+            # legal/outside side. For the right boundary that means far -> near.
             self.right_boundary_line: Optional[LineModel] = LineModel(
-                tuple(self._kn_r), tuple(self._kf_r)
+                tuple(self._kf_r), tuple(self._kn_r)
             )
 
             # Kitchen centre — used to determine which side of each boundary

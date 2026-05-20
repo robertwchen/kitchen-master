@@ -1,0 +1,4 @@
+-r requirements.txt
+
+# Optional YOLO backend for ball detection.
+ultralytics>=8.0

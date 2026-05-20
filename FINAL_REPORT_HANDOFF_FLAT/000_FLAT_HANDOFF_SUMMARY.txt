@@ -1,5 +1,0 @@
-Flat handoff folder: /Users/robert/dev/git/school/kitchen-master/kitchen-master/FINAL_REPORT_HANDOFF_FLAT
-Flattened source files copied: 606
-Total files in folder including manifest/readme/summary: 609
-Subfolders: 0
-Original paths are encoded with double underscores and listed in 000_FLAT_HANDOFF_MANIFEST.csv.

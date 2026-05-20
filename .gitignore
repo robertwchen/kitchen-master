@@ -4,16 +4,42 @@ __pycache__/
 venv/
 .env
 .DS_Store
-results/**/*.png
-results/**/*.mp4
-results/**/*.csv
+.cursor/
+.pytest_cache/
+
+# Local-only archives and generated handoff material.
+_local_archive/
+FINAL_REPORT_HANDOFF_COMPLETE/
+FINAL_REPORT_HANDOFF_FLAT/
+KITCHENMASTER_EVERYTHING_HANDOFF/
+final_report_bundle/
+TotalPrompts/
+misc/
+tmp/
+outputs/
+Ultralytics/
+
+# Generated experiment outputs. Keep small curated summaries under docs/.
+results/
+!docs/results/
+
+# Raw media and extracted frame dumps.
 data/real/raw/*
 data/real/temp/*
 data/real/frames/*
 !data/real/frames/.gitkeep
-data/real/videos/*.MOV
-data/real/videos/*.mov
-data/real/videos/*.mp4
-data/real/videos/*.MP4
-data/real/videos/*.avi
+data/real/videos/*
+!data/real/videos/.gitkeep
 data/sim/raw/*
+
+# Root-level media/model drops from ad hoc experiments.
+*.MOV
+*.mov
+*.MP4
+*.mp4
+
+# Model weights are documented but kept out of Git.
+*.pt
+*.onnx
+models/*
+!models/.gitkeep

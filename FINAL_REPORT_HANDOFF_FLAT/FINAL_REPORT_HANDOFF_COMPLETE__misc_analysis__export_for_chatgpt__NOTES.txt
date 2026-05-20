@@ -1,1 +1,0 @@
-Note: the current repo does not generate a file literally named metadata.csv. The synthetic pipeline writes results to results/sim_v1/predictions.csv and results/sim_v1/metrics.csv, so the exported CSV example below uses predictions.csv as the closest generated artifact.
